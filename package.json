@@ -1,0 +1,27 @@
+{
+  "name": "afk.exe",
+  "private": true,
+  "version": "1.0.0",
+  "description": "AFK.exe - Complete project setup",
+  "scripts": {
+    "dev": "npm run dev --prefix Frontend",
+    "dev:frontend": "npm run dev --prefix Frontend",
+    "dev:backend": "npm run dev --prefix Backend",
+    "build": "npm run build --prefix Frontend",
+    "build:frontend": "npm run build --prefix Frontend",
+    "build:backend": "npm run build --prefix Backend",
+    "install:frontend": "cd Frontend && npm install",
+    "install:backend": "cd Backend && npm install",
+    "install:all": "npm run install:frontend && npm run install:backend",
+    "lint": "npm run lint --prefix Frontend",
+    "preview": "npm run preview --prefix Frontend"
+  },
+  "keywords": [
+    "react",
+    "typescript",
+    "tailwindcss",
+    "vite"
+  ],
+  "author": "",
+  "license": "ISC"
+} 
