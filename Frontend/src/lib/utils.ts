@@ -6,9 +6,12 @@ export const cn = (...inputs: ClassValue[]) => {
 }
 
 export const formatDuration = (seconds: number): string => {
-  const hours = Math.floor(seconds / 3600)
-  const minutes = Math.floor((seconds % 3600) / 60)
-  const remainingSeconds = seconds % 60
+  // Averages arrive as floats; without rounding first the modulo below leaks
+  // values like "24.57142857142867s" into the UI.
+  const total = Math.max(0, Math.round(seconds || 0))
+  const hours = Math.floor(total / 3600)
+  const minutes = Math.floor((total % 3600) / 60)
+  const remainingSeconds = total % 60
 
   if (hours > 0) {
     return `${hours}h ${minutes}m`
@@ -17,6 +20,17 @@ export const formatDuration = (seconds: number): string => {
   } else {
     return `${remainingSeconds}s`
   }
+}
+
+/** Compact label for axis ticks — "2h", "45m", "30s". */
+export const formatDurationShort = (seconds: number): string => {
+  const total = Math.max(0, Math.round(seconds || 0))
+  if (total >= 3600) {
+    const h = total / 3600
+    return `${h >= 10 ? Math.round(h) : Math.round(h * 10) / 10}h`
+  }
+  if (total >= 60) return `${Math.round(total / 60)}m`
+  return `${total}s`
 }
 
 export const formatTime = (date: Date): string => {

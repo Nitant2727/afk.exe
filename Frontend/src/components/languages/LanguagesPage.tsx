@@ -79,7 +79,7 @@ const LanguagesPage = ({ timeFilter }: LanguagesPageProps) => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {languageStats.map((language, index) => {
+        {languageStats.map((language) => {
           const percentage = totalDuration > 0 ? Math.round((language.duration / totalDuration) * 100) : 0
           
           return (

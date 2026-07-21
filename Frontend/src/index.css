@@ -1,134 +1,284 @@
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Fira+Sans:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
+  /*
+   * Dark is the primary mode — this is a developer tool that sits open next to
+   * an editor. Light is kept as a real alternative rather than an afterthought,
+   * so the theme toggle actually means something.
+   *
+   * Backgrounds deliberately avoid pure #000: OLED smear makes true black ghost
+   * during scroll, and a slight blue tint reads as instrument panel rather than
+   * unstyled.
+   */
   :root {
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --surface: 210 40% 99%;
+    --surface-raised: 0 0% 100%;
+    --foreground: 222 47% 11%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 221 83% 53%;
     --primary-foreground: 210 40% 98%;
     --secondary: 210 40% 96%;
-    --secondary-foreground: 222.2 84% 4.9%;
+    --secondary-foreground: 222 47% 11%;
     --muted: 210 40% 96%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96%;
-    --accent-foreground: 222.2 84% 4.9%;
-    --destructive: 0 84.2% 60.2%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 38 92% 45%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
-    --radius: 0.5rem;
+    --success: 152 60% 36%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 221 83% 53%;
+    --radius: 0.75rem;
+
+    --glow: 221 83% 53%;
+    --grid-line: 222 30% 88%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
+    --background: 224 47% 5%;
+    --surface: 223 42% 7%;
+    --surface-raised: 222 38% 10%;
     --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
+    --card: 223 42% 7%;
     --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
+    --popover: 222 38% 10%;
     --popover-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 84% 4.9%;
-    --secondary: 217.2 32.6% 17.5%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 224 47% 5%;
+    --secondary: 222 30% 15%;
     --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
+    --muted: 222 30% 14%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 38 92% 55%;
+    --accent-foreground: 224 47% 5%;
+    --destructive: 0 72% 58%;
     --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 94.1%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
-  }
-}
+    --success: 152 62% 48%;
+    --border: 220 26% 17%;
+    --input: 220 26% 17%;
+    --ring: 217 91% 60%;
 
-@layer base {
+    --glow: 217 91% 60%;
+    --grid-line: 220 30% 14%;
+  }
+
   * {
     @apply border-border;
   }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
     @apply bg-background text-foreground;
+    font-family: 'Fira Sans', ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Numerics use tabular figures so counters don't jitter while animating. */
+  .font-mono,
+  .tabular {
+    font-family: 'Fira Code', ui-monospace, 'Cascadia Code', monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
   }
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
+@layer components {
+  /* Frosted surface used for cards and the sticky header. */
+  .glass {
+    background: linear-gradient(
+      180deg,
+      hsl(var(--surface-raised) / 0.86),
+      hsl(var(--surface) / 0.72)
+    );
+    backdrop-filter: blur(16px) saturate(140%);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+    border: 1px solid hsl(var(--border) / 0.9);
+  }
+
+  /* Hairline highlight along the top edge — reads as a lit bevel. */
+  .glass-edge {
+    position: relative;
+  }
+  .glass-edge::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      hsl(var(--foreground) / 0.18),
+      transparent
+    );
+    pointer-events: none;
+  }
+
+  .glow-ring {
+    box-shadow:
+      0 0 0 1px hsl(var(--border)),
+      0 18px 40px -24px hsl(var(--glow) / 0.55);
+  }
+
+  .glow-ring-hover {
+    transition: box-shadow 260ms cubic-bezier(0.16, 1, 0.3, 1),
+      transform 260ms cubic-bezier(0.16, 1, 0.3, 1),
+      border-color 260ms ease;
+  }
+  .glow-ring-hover:hover {
+    box-shadow:
+      0 0 0 1px hsl(var(--glow) / 0.5),
+      0 26px 60px -28px hsl(var(--glow) / 0.75);
+  }
+
+  /* Blueprint grid behind the app shell. */
+  .grid-bg {
+    background-image:
+      linear-gradient(hsl(var(--grid-line) / 0.55) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--grid-line) / 0.55) 1px, transparent 1px);
+    background-size: 44px 44px;
+    -webkit-mask-image: radial-gradient(ellipse 90% 60% at 50% 0%, #000 45%, transparent 100%);
+    mask-image: radial-gradient(ellipse 90% 60% at 50% 0%, #000 45%, transparent 100%);
+  }
+
+  .text-gradient {
+    background: linear-gradient(
+      120deg,
+      hsl(var(--foreground)),
+      hsl(var(--foreground) / 0.72) 45%,
+      hsl(var(--primary))
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
 }
 
-::-webkit-scrollbar-track {
+@layer utilities {
+  .ease-expo {
+    transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* Sweep of light that crosses a card on hover. */
+  .sheen {
+    position: relative;
+    overflow: hidden;
+  }
+  .sheen::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-120%);
+    background: linear-gradient(
+      100deg,
+      transparent 30%,
+      hsl(var(--foreground) / 0.07) 50%,
+      transparent 70%
+    );
+    transition: transform 900ms cubic-bezier(0.16, 1, 0.3, 1);
+    pointer-events: none;
+  }
+  .sheen:hover::after {
+    transform: translateX(120%);
+  }
+}
+
+/* Ambient light drifting behind the shell. */
+@keyframes drift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  33% { transform: translate3d(6%, -8%, 0) scale(1.12); }
+  66% { transform: translate3d(-5%, 6%, 0) scale(0.94); }
+}
+
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}
+
+/* Sidebar entry — CSS so nav items can never be left invisible. */
+@keyframes nav-in {
+  from { opacity: 0; transform: translate3d(-12px, 0, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 hsl(var(--success) / 0.5); }
+  70% { box-shadow: 0 0 0 8px hsl(var(--success) / 0); }
+  100% { box-shadow: 0 0 0 0 hsl(var(--success) / 0); }
+}
+
+.animate-drift { animation: drift 26s ease-in-out infinite; }
+.animate-drift-slow { animation: drift 38s ease-in-out infinite reverse; }
+.animate-pulse-ring { animation: pulse-ring 2.2s ease-out infinite; }
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
   background: hsl(var(--muted));
 }
-
-::-webkit-scrollbar-thumb {
-  background: hsl(var(--muted-foreground) / 0.3);
-  border-radius: 3px;
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    hsl(var(--foreground) / 0.08),
+    transparent
+  );
+  animation: shimmer 1.6s infinite;
 }
 
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.28);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground) / 0.5);
+  background-clip: content-box;
 }
 
-/* Animation utilities */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
+/*
+ * Motion is heavy here by design, so the reduced-motion escape hatch has to be
+ * absolute — including the ambient background, which is the most nauseating
+ * element for anyone sensitive to movement.
+ */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+  .animate-drift,
+  .animate-drift-slow,
+  .animate-pulse-ring {
+    animation: none !important;
   }
-}
-
-@keyframes slideIn {
-  from {
-    transform: translateX(-100%);
-  }
-  to {
-    transform: translateX(0);
-  }
-}
-
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
-}
-
-.animate-fade-in {
-  animation: fadeIn 0.3s ease-out;
-}
-
-.animate-slide-in {
-  animation: slideIn 0.3s ease-out;
-}
-
-.animate-pulse-slow {
-  animation: pulse 2s infinite;
-}
-
-/* Loading spinner */
-.loading-spinner {
-  @apply animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent;
 }

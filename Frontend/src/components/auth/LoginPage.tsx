@@ -14,7 +14,7 @@ declare global {
 
 const LoginPage = () => {
   const [isLoading, setIsLoading] = useState(false)
-  const { login, isLoading: authLoading, error } = useAuthStore()
+  const { isLoading: authLoading, error } = useAuthStore()
 
   const features = [
     {

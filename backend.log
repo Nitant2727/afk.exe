@@ -1,0 +1,120 @@
+INFO:     Started server process [11704]
+INFO:     Waiting for application startup.
+2026-07-21 14:54:11,990 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-07-21 14:54:11,990 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("file_sessions")
+2026-07-21 14:54:11,990 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-07-21 14:54:11,990 INFO sqlalchemy.engine.Engine PRAGMA temp.table_info("file_sessions")
+2026-07-21 14:54:11,990 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-07-21 14:54:11,990 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("users")
+2026-07-21 14:54:11,990 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-07-21 14:54:11,990 INFO sqlalchemy.engine.Engine PRAGMA temp.table_info("users")
+2026-07-21 14:54:11,990 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-07-21 14:54:11,990 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("coding_sessions")
+2026-07-21 14:54:11,990 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-07-21 14:54:11,990 INFO sqlalchemy.engine.Engine PRAGMA temp.table_info("coding_sessions")
+2026-07-21 14:54:11,990 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-07-21 14:54:11,999 INFO sqlalchemy.engine.Engine 
+CREATE TABLE file_sessions (
+	id VARCHAR NOT NULL, 
+	user_id VARCHAR NOT NULL, 
+	file_path TEXT NOT NULL, 
+	file_name VARCHAR NOT NULL, 
+	file_extension VARCHAR NOT NULL, 
+	language VARCHAR NOT NULL, 
+	project_name VARCHAR NOT NULL, 
+	project_path TEXT NOT NULL, 
+	session_start_time DATETIME NOT NULL, 
+	session_end_time DATETIME, 
+	total_duration INTEGER, 
+	lines_added INTEGER, 
+	lines_deleted INTEGER, 
+	lines_modified INTEGER, 
+	characters_added INTEGER, 
+	characters_deleted INTEGER, 
+	characters_modified INTEGER, 
+	total_edits INTEGER, 
+	editor VARCHAR NOT NULL, 
+	platform VARCHAR NOT NULL, 
+	is_active BOOLEAN, 
+	created_at DATETIME, 
+	updated_at DATETIME, 
+	PRIMARY KEY (id)
+)
+
+
+2026-07-21 14:54:11,999 INFO sqlalchemy.engine.Engine [no key 0.00024s] ()
+2026-07-21 14:54:11,999 INFO sqlalchemy.engine.Engine CREATE INDEX idx_session_project ON file_sessions (project_name)
+2026-07-21 14:54:11,999 INFO sqlalchemy.engine.Engine [no key 0.00010s] ()
+2026-07-21 14:54:12,015 INFO sqlalchemy.engine.Engine CREATE INDEX idx_session_start_time ON file_sessions (session_start_time)
+2026-07-21 14:54:12,015 INFO sqlalchemy.engine.Engine [no key 0.00011s] ()
+2026-07-21 14:54:12,015 INFO sqlalchemy.engine.Engine CREATE INDEX idx_session_user ON file_sessions (user_id)
+2026-07-21 14:54:12,015 INFO sqlalchemy.engine.Engine [no key 0.00009s] ()
+2026-07-21 14:54:12,032 INFO sqlalchemy.engine.Engine CREATE INDEX idx_session_language ON file_sessions (language)
+2026-07-21 14:54:12,032 INFO sqlalchemy.engine.Engine [no key 0.00014s] ()
+2026-07-21 14:54:12,032 INFO sqlalchemy.engine.Engine 
+CREATE TABLE users (
+	id INTEGER NOT NULL, 
+	github_id VARCHAR NOT NULL, 
+	username VARCHAR NOT NULL, 
+	email VARCHAR, 
+	avatar_url VARCHAR, 
+	access_token VARCHAR NOT NULL, 
+	created_at DATETIME, 
+	updated_at DATETIME, 
+	is_active BOOLEAN, 
+	PRIMARY KEY (id), 
+	UNIQUE (github_id)
+)
+
+
+2026-07-21 14:54:12,032 INFO sqlalchemy.engine.Engine [no key 0.00010s] ()
+2026-07-21 14:54:12,040 INFO sqlalchemy.engine.Engine 
+CREATE TABLE coding_sessions (
+	id VARCHAR NOT NULL, 
+	user_id INTEGER NOT NULL, 
+	file_path TEXT NOT NULL, 
+	file_name VARCHAR NOT NULL, 
+	file_extension VARCHAR, 
+	language VARCHAR, 
+	project_name VARCHAR, 
+	project_path TEXT, 
+	focus_start_time DATETIME NOT NULL, 
+	focus_end_time DATETIME, 
+	focus_duration INTEGER, 
+	coding_duration INTEGER, 
+	editor VARCHAR, 
+	platform VARCHAR, 
+	is_active BOOLEAN, 
+	created_at DATETIME, 
+	updated_at DATETIME, 
+	PRIMARY KEY (id), 
+	FOREIGN KEY(user_id) REFERENCES users (id)
+)
+
+
+2026-07-21 14:54:12,040 INFO sqlalchemy.engine.Engine [no key 0.00010s] ()
+2026-07-21 14:54:12,040 INFO sqlalchemy.engine.Engine CREATE INDEX idx_legacy_session_language ON coding_sessions (language)
+2026-07-21 14:54:12,040 INFO sqlalchemy.engine.Engine [no key 0.00010s] ()
+2026-07-21 14:54:12,058 INFO sqlalchemy.engine.Engine CREATE INDEX idx_legacy_session_start_time ON coding_sessions (focus_start_time)
+2026-07-21 14:54:12,058 INFO sqlalchemy.engine.Engine [no key 0.00012s] ()
+2026-07-21 14:54:12,058 INFO sqlalchemy.engine.Engine CREATE INDEX idx_legacy_session_user ON coding_sessions (user_id)
+2026-07-21 14:54:12,058 INFO sqlalchemy.engine.Engine [no key 0.00017s] ()
+2026-07-21 14:54:12,058 INFO sqlalchemy.engine.Engine CREATE INDEX idx_legacy_session_project ON coding_sessions (project_name)
+2026-07-21 14:54:12,058 INFO sqlalchemy.engine.Engine [no key 0.00008s] ()
+2026-07-21 14:54:12,073 INFO sqlalchemy.engine.Engine COMMIT
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:53764 - "GET /api/health HTTP/1.1" 200 OK
+2026-07-21 14:54:18,565 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-07-21 14:54:18,576 INFO sqlalchemy.engine.Engine SELECT count(*) AS count_1 
+FROM (SELECT file_sessions.id AS id, file_sessions.user_id AS user_id, file_sessions.file_path AS file_path, file_sessions.file_name AS file_name, file_sessions.file_extension AS file_extension, file_sessions.language AS language, file_sessions.project_name AS project_name, file_sessions.project_path AS project_path, file_sessions.session_start_time AS session_start_time, file_sessions.session_end_time AS session_end_time, file_sessions.total_duration AS total_duration, file_sessions.lines_added AS lines_added, file_sessions.lines_deleted AS lines_deleted, file_sessions.lines_modified AS lines_modified, file_sessions.characters_added AS characters_added, file_sessions.characters_deleted AS characters_deleted, file_sessions.characters_modified AS characters_modified, file_sessions.total_edits AS total_edits, file_sessions.editor AS editor, file_sessions.platform AS platform, file_sessions.is_active AS is_active, file_sessions.created_at AS created_at, file_sessions.updated_at AS updated_at 
+FROM file_sessions 
+WHERE file_sessions.user_id = ?) AS anon_1
+2026-07-21 14:54:18,576 INFO sqlalchemy.engine.Engine [generated in 0.00017s] ('dev-user',)
+2026-07-21 14:54:18,576 INFO sqlalchemy.engine.Engine SELECT file_sessions.id, file_sessions.user_id, file_sessions.file_path, file_sessions.file_name, file_sessions.file_extension, file_sessions.language, file_sessions.project_name, file_sessions.project_path, file_sessions.session_start_time, file_sessions.session_end_time, file_sessions.total_duration, file_sessions.lines_added, file_sessions.lines_deleted, file_sessions.lines_modified, file_sessions.characters_added, file_sessions.characters_deleted, file_sessions.characters_modified, file_sessions.total_edits, file_sessions.editor, file_sessions.platform, file_sessions.is_active, file_sessions.created_at, file_sessions.updated_at 
+FROM file_sessions 
+WHERE file_sessions.user_id = ? ORDER BY file_sessions.session_start_time DESC
+ LIMIT ? OFFSET ?
+2026-07-21 14:54:18,576 INFO sqlalchemy.engine.Engine [generated in 0.00011s] ('dev-user', 2, 0)
+INFO:     127.0.0.1:53766 - "GET /api/sessions?limit=2 HTTP/1.1" 200 OK
+2026-07-21 14:54:18,576 INFO sqlalchemy.engine.Engine ROLLBACK

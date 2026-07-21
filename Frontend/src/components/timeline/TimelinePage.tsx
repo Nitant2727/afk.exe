@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Calendar, Clock, Activity, GitCommit } from 'lucide-react'
+import { Calendar, Activity, GitCommit } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
 import { formatDuration, formatDate } from '../../lib/utils'
 import { apiClient } from '../../lib/api'

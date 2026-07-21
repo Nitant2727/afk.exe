@@ -168,7 +168,7 @@ const ProjectsPage = ({ timeFilter }: ProjectsPageProps) => {
             </div>
           ) : (
             <div className="space-y-4">
-              {projectStats.map((project, index) => {
+              {projectStats.map((project) => {
                 const percentage = aggregateStats 
                   ? Math.round((project.duration / aggregateStats.totalDuration) * 100)
                   : 0

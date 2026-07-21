@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Copy, Check, Shield, ExternalLink } from 'lucide-react';
+import { Copy, Check, Shield } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { useAuthStore } from '../../store/authStore';

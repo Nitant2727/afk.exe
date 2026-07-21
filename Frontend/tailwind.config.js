@@ -52,6 +52,19 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        surface: {
+          DEFAULT: "hsl(var(--surface))",
+          raised: "hsl(var(--surface-raised))",
+        },
+        success: "hsl(var(--success))",
+        glow: "hsl(var(--glow))",
+      },
+      fontFamily: {
+        sans: ["'Fira Sans'", "ui-sans-serif", "system-ui", "sans-serif"],
+        mono: ["'Fira Code'", "ui-monospace", "monospace"],
+      },
+      transitionTimingFunction: {
+        expo: "cubic-bezier(0.16, 1, 0.3, 1)",
       },
       borderRadius: {
         lg: "var(--radius)",
