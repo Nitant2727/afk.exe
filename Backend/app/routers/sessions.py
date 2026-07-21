@@ -14,6 +14,52 @@ from app.schemas import (
 )
 
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
+
+# VS Code reports `languageId` in lowercase ("python", "typescriptreact"), while
+# the display names used for colours and grouping are capitalised. Without
+# normalising on ingest, every session the extension records forks into a second,
+# grey-coloured entry alongside the canonical one.
+LANGUAGE_DISPLAY_NAMES = {
+    "typescript": "TypeScript",
+    "typescriptreact": "TypeScript",
+    "javascript": "JavaScript",
+    "javascriptreact": "JavaScript",
+    "python": "Python",
+    "rust": "Rust",
+    "go": "Go",
+    "java": "Java",
+    "cpp": "C++",
+    "c": "C",
+    "csharp": "C#",
+    "html": "HTML",
+    "css": "CSS",
+    "scss": "CSS",
+    "vue": "Vue",
+    "json": "JSON",
+    "jsonc": "JSON",
+    "yaml": "YAML",
+    "toml": "TOML",
+    "markdown": "Markdown",
+    "shellscript": "Shell",
+    "bash": "Shell",
+    "powershell": "PowerShell",
+    "sql": "SQL",
+    "dockerfile": "Dockerfile",
+    "plaintext": "Plain Text",
+}
+
+
+def normalize_language(raw: Optional[str]) -> str:
+    """Map a client-supplied language to its canonical display name."""
+    if not raw:
+        return "Unknown"
+    key = raw.strip().lower()
+    if key in LANGUAGE_DISPLAY_NAMES:
+        return LANGUAGE_DISPLAY_NAMES[key]
+    # Already-capitalised names (and anything unmapped) pass through unchanged.
+    return raw.strip()
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -103,7 +149,7 @@ async def create_session(
             existing_session.file_path = session_data.get("filePath")
             existing_session.file_name = session_data.get("fileName")
             existing_session.file_extension = session_data.get("fileExtension")
-            existing_session.language = session_data.get("language")
+            existing_session.language = normalize_language(session_data.get("language"))
             existing_session.project_name = session_data.get("projectName")
             existing_session.project_path = session_data.get("projectPath")
             existing_session.session_start_time = datetime.fromisoformat(session_data.get("sessionStartTime").replace('Z', '+00:00'))
@@ -128,7 +174,7 @@ async def create_session(
                 file_path=session_data.get("filePath"),
                 file_name=session_data.get("fileName"),
                 file_extension=session_data.get("fileExtension"),
-                language=session_data.get("language"),
+                language=normalize_language(session_data.get("language")),
                 project_name=session_data.get("projectName"),
                 project_path=session_data.get("projectPath"),
                 session_start_time=datetime.fromisoformat(session_data.get("sessionStartTime").replace('Z', '+00:00')),
