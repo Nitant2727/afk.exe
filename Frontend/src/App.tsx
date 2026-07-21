@@ -12,7 +12,6 @@ import Sidebar from './components/layout/Sidebar'
 import Header from './components/layout/Header'
 import LoginPage from './components/auth/LoginPage'
 import GitHubCallback from './components/auth/GitHubCallback'
-import { AmbientBackground } from './components/ui/motion'
 import { useAuthStore } from './store/authStore'
 import type { TimeFilter } from './types/api'
 
@@ -25,6 +24,16 @@ const queryClient = new QueryClient({
     },
   },
 })
+
+const TITLES: Record<string, string> = {
+  dashboard: 'Dashboard',
+  sessions: 'Sessions',
+  analytics: 'Analytics',
+  projects: 'Projects',
+  languages: 'Languages',
+  timeline: 'Timeline',
+  settings: 'Settings',
+}
 
 const MainLayout = () => {
   const [activeTab, setActiveTab] = useState('dashboard')
@@ -55,7 +64,11 @@ const MainLayout = () => {
     <div className="h-screen flex">
       <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header timeFilter={timeFilter} onTimeFilterChange={setTimeFilter} />
+        <Header
+          title={TITLES[activeTab] ?? 'Dashboard'}
+          timeFilter={timeFilter}
+          onTimeFilterChange={setTimeFilter}
+        />
         <main className="flex-1 overflow-y-auto overflow-x-hidden">
           {/*
             * Deliberately not AnimatePresence with mode="wait": that holds the
@@ -99,7 +112,6 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <div className="min-h-screen bg-background text-foreground">
-        <AmbientBackground />
         {isCallback ? (
           <GitHubCallback />
         ) : isLoading ? (
