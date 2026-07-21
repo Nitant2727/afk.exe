@@ -1,13 +1,9 @@
-import type { ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   Clock,
   Code2,
   Layers,
   Flame,
-  ArrowUpRight,
-  ArrowDownRight,
-  type LucideIcon,
 } from 'lucide-react'
 import {
   AreaChart,
@@ -18,9 +14,8 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts'
-import { CountUp } from '../ui/motion'
-import { ACCENT_SOLID } from '../ui/data-display'
-import { formatDuration, formatDurationShort, cn } from '../../lib/utils'
+import { Metric, Panel, ACCENT_SOLID } from '../ui/data-display'
+import { formatDuration, formatDurationShort } from '../../lib/utils'
 import { apiClient } from '../../lib/api'
 import type {
   TimeFilter,
@@ -53,79 +48,6 @@ const ChartTooltip = ({ active, payload, label }: any) => {
     </div>
   )
 }
-
-/**
- * Compact metric tile.
- *
- * Intentionally plain — no tilt, spotlight or sheen. When every surface has an
- * effect the hierarchy flattens and the whole screen reads as decoration; the
- * emphasis is spent on the chart and the activity feed instead.
- */
-const Metric = ({
-  label,
-  icon: Icon,
-  value,
-  count,
-  sub,
-  delta,
-}: {
-  label: string
-  icon: LucideIcon
-  value: string | number
-  count?: { to: number; format?: (n: number) => string }
-  sub: string
-  delta?: number
-}) => (
-  <div className="rounded-xl border border-border/70 bg-surface/50 p-4 transition-colors hover:border-border">
-    <div className="flex items-center gap-2">
-      <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-      <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-        {label}
-      </p>
-      {delta != null && delta !== 0 && Number.isFinite(delta) && (
-        <span
-          className={cn(
-            'ml-auto flex items-center gap-0.5 text-[11px] font-medium tabular',
-            delta > 0 ? 'text-success' : 'text-destructive'
-          )}
-        >
-          {delta > 0 ? (
-            <ArrowUpRight className="h-3 w-3" />
-          ) : (
-            <ArrowDownRight className="h-3 w-3" />
-          )}
-          {Math.abs(delta)}%
-        </span>
-      )}
-    </div>
-    <p className="mt-2.5 truncate font-mono text-2xl font-semibold leading-none tracking-tight">
-      {count ? <CountUp value={count.to} format={count.format} /> : value}
-    </p>
-    <p className="mt-1.5 truncate text-xs text-muted-foreground">{sub}</p>
-  </div>
-)
-
-const Panel = ({
-  title,
-  aside,
-  children,
-  className,
-}: {
-  title: string
-  aside?: ReactNode
-  children: ReactNode
-  className?: string
-}) => (
-  <section
-    className={cn('rounded-xl border border-border/70 bg-surface/50', className)}
-  >
-    <div className="flex items-center justify-between gap-3 border-b border-border/60 px-4 py-3">
-      <h2 className="text-sm font-semibold tracking-tight">{title}</h2>
-      {aside}
-    </div>
-    <div className="p-4">{children}</div>
-  </section>
-)
 
 const Dashboard = ({ timeFilter }: DashboardProps) => {
   const params = { time_filter: timeFilter }
@@ -184,7 +106,10 @@ const Dashboard = ({ timeFilter }: DashboardProps) => {
   const colorFor = (language: string) => {
     const i = languages.findIndex((l) => l.name === language)
     if (i === -1) return ACCENT_SOLID[0]
-    return (languages[i] as any).color || ACCENT_SOLID[i % ACCENT_SOLID.length]
+    // #6b7280 is the backend's "unknown language" grey — not a real colour.
+    const c = (languages[i] as any).color as string | undefined
+    if (c && c.toLowerCase() !== '#6b7280') return c
+    return ACCENT_SOLID[i % ACCENT_SOLID.length]
   }
 
   return (
