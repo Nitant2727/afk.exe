@@ -15,14 +15,16 @@ import type { FileSession, LanguageStats, TimeFilter } from '../../types/api'
 
 interface SessionsPageProps {
   timeFilter: TimeFilter
+  /** Shared with the header so both inputs show the same query. */
+  search: string
+  onSearchChange: (value: string) => void
 }
 
 const PAGE_SIZE = 25
 
-const SessionsPage = ({ timeFilter }: SessionsPageProps) => {
+const SessionsPage = ({ timeFilter, search, onSearchChange }: SessionsPageProps) => {
   const [project, setProject] = useState<string>('')
   const [language, setLanguage] = useState<string>('')
-  const [query, setQuery] = useState('')
   const [page, setPage] = useState(0)
 
   const params = { time_filter: timeFilter }
@@ -69,15 +71,15 @@ const SessionsPage = ({ timeFilter }: SessionsPageProps) => {
 
   // Free-text filtering is client-side; the API has no search parameter.
   const visible = useMemo(() => {
-    if (!query.trim()) return sessions
-    const q = query.toLowerCase()
+    if (!search.trim()) return sessions
+    const q = search.toLowerCase()
     return sessions.filter(
       (s) =>
         s.fileName.toLowerCase().includes(q) ||
         s.projectName.toLowerCase().includes(q) ||
         s.filePath.toLowerCase().includes(q)
     )
-  }, [sessions, query])
+  }, [sessions, search])
 
   const pageTotals = useMemo(
     () => ({
@@ -88,12 +90,12 @@ const SessionsPage = ({ timeFilter }: SessionsPageProps) => {
   )
 
   const lastPage = Math.max(0, Math.ceil(total / PAGE_SIZE) - 1)
-  const filtersActive = Boolean(project || language || query)
+  const filtersActive = Boolean(project || language || search)
 
   const resetFilters = () => {
     setProject('')
     setLanguage('')
-    setQuery('')
+    onSearchChange('')
     setPage(0)
   }
 
@@ -138,8 +140,8 @@ const SessionsPage = ({ timeFilter }: SessionsPageProps) => {
             <div className="relative">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
               <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                value={search}
+                onChange={(e) => onSearchChange(e.target.value)}
                 placeholder="Filter files…"
                 aria-label="Filter sessions by file or project"
                 className="h-8 w-40 rounded-lg border border-border/80 bg-foreground/[0.03] pl-7 pr-2 text-xs outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary/50"

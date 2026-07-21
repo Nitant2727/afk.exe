@@ -40,11 +40,14 @@ const MainLayout = () => {
   // Seven days reads as a real working week; "today" is often nearly empty and
   // makes the dashboard look broken on first load.
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('last_7_days')
+  // Header search is global: typing filters, submitting jumps to Sessions,
+  // which is the only view that lists individual files.
+  const [search, setSearch] = useState('')
 
   const renderContent = () => {
     switch (activeTab) {
       case 'sessions':
-        return <SessionsPage timeFilter={timeFilter} />
+        return <SessionsPage timeFilter={timeFilter} search={search} onSearchChange={setSearch} />
       case 'analytics':
         return <AnalyticsPage timeFilter={timeFilter} />
       case 'projects':
@@ -68,6 +71,9 @@ const MainLayout = () => {
           title={TITLES[activeTab] ?? 'Dashboard'}
           timeFilter={timeFilter}
           onTimeFilterChange={setTimeFilter}
+          search={search}
+          onSearchChange={setSearch}
+          onSearchSubmit={() => setActiveTab('sessions')}
         />
         <main className="flex-1 overflow-y-auto overflow-x-hidden">
           {/*

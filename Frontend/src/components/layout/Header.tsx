@@ -10,6 +10,10 @@ interface HeaderProps {
   title: string
   timeFilter: TimeFilter
   onTimeFilterChange: (filter: TimeFilter) => void
+  search: string
+  onSearchChange: (value: string) => void
+  /** Called on submit — the shell uses it to jump to the Sessions view. */
+  onSearchSubmit: () => void
   className?: string
 }
 
@@ -32,7 +36,15 @@ const MORE: Array<{ value: TimeFilter; label: string }> = [
   { value: 'last_month', label: 'Last month' },
 ]
 
-const Header = ({ title, timeFilter, onTimeFilterChange, className }: HeaderProps) => {
+const Header = ({
+  title,
+  timeFilter,
+  onTimeFilterChange,
+  search,
+  onSearchChange,
+  onSearchSubmit,
+  className,
+}: HeaderProps) => {
   const [isDark, setIsDark] = useState(
     () =>
       typeof document !== 'undefined' &&
@@ -65,15 +77,24 @@ const Header = ({ title, timeFilter, onTimeFilterChange, className }: HeaderProp
     >
       <h1 className="shrink-0 text-[17px] font-semibold tracking-tight">{title}</h1>
 
-      <div className="relative ml-2 hidden min-w-0 max-w-xs flex-1 md:block">
+      <form
+        role="search"
+        onSubmit={(e) => {
+          e.preventDefault()
+          onSearchSubmit()
+        }}
+        className="relative ml-2 hidden min-w-0 max-w-xs flex-1 md:block"
+      >
         <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
         <input
           type="search"
+          value={search}
+          onChange={(e) => onSearchChange(e.target.value)}
           placeholder="Search projects, files…"
-          aria-label="Search"
+          aria-label="Search sessions by file or project"
           className="h-9 w-full rounded-lg border border-border/80 bg-foreground/[0.03] pl-9 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary/50 focus:bg-foreground/[0.05]"
         />
-      </div>
+      </form>
 
       <div className="ml-auto flex shrink-0 items-center gap-2">
         {/* Segmented range control. */}
