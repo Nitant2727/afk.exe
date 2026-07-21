@@ -1,2 +1,8 @@
 config.bat
 node_modules
+node_modules/
+extension/dist/
+*.vsix
+__pycache__/
+*.pyc
+.env
