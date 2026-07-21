@@ -8,7 +8,9 @@ import {
   Languages,
   FolderOpen,
   Terminal,
+  LogOut,
 } from 'lucide-react'
+import { useAuthStore } from '../../store/authStore'
 import { cn } from '../../lib/utils'
 
 interface SidebarProps {
@@ -27,6 +29,8 @@ const navigation = [
 ]
 
 const Sidebar = ({ activeTab, onTabChange, className }: SidebarProps) => {
+  const { user, logout } = useAuthStore()
+
   const renderItem = (item: (typeof navigation)[number]) => {
     const isActive = activeTab === item.id
     return (
@@ -110,7 +114,32 @@ const Sidebar = ({ activeTab, onTabChange, className }: SidebarProps) => {
         {navigation.map(renderItem)}
       </nav>
 
-      <div className="border-t border-border/70 p-3">
+      <div className="space-y-1 border-t border-border/70 p-3">
+        {user && (
+          <div className="flex items-center gap-2.5 rounded-xl px-3 py-2">
+            {user.avatar_url ? (
+              <img
+                src={user.avatar_url}
+                alt=""
+                className="h-7 w-7 shrink-0 rounded-full ring-1 ring-border"
+              />
+            ) : (
+              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-primary/15 text-[11px] font-medium text-primary ring-1 ring-inset ring-primary/25">
+                {(user.username || '?').slice(0, 2).toUpperCase()}
+              </span>
+            )}
+            <p className="min-w-0 flex-1 truncate text-xs font-medium">{user.username}</p>
+            <button
+              onClick={logout}
+              aria-label="Sign out"
+              title="Sign out"
+              className="shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
+
         <motion.button
           onClick={() => onTabChange('settings')}
           whileHover={{ x: 3 }}

@@ -1,272 +1,232 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Github, Monitor, Code, TrendingUp, AlertCircle, CheckCircle } from 'lucide-react'
-import { Button } from '../ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
-import { useAuthStore } from '../../store/authStore'
+import { Github, Terminal, Activity, Code2, ShieldCheck, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { Button } from '../ui/button'
+import { Spotlight, Magnetic } from '../ui/motion'
+import { useAuthStore } from '../../store/authStore'
+import { apiClient } from '../../lib/api'
+import type { User } from '../../types/api'
+
+interface OAuthResult {
+  error?: string
+  success?: boolean
+  user?: User
+  access_token?: string
+  is_new_user?: boolean
+}
 
 declare global {
   interface Window {
-    github_oauth_callback?: (data: any) => void;
+    github_oauth_callback?: (data: OAuthResult) => void
   }
 }
 
+const FEATURES = [
+  {
+    icon: Activity,
+    title: 'Real-time tracking',
+    body: 'Sessions stream in from VS Code and Cursor as you work.',
+  },
+  {
+    icon: Code2,
+    title: 'Language breakdown',
+    body: 'See which languages and projects actually consumed your week.',
+  },
+  {
+    icon: ShieldCheck,
+    title: 'Local first',
+    body: 'Your data stays on your machine unless you deploy it yourself.',
+  },
+]
+
 const LoginPage = () => {
-  const [isLoading, setIsLoading] = useState(false)
-  const { isLoading: authLoading, error } = useAuthStore()
+  const { setUser } = useAuthStore()
+  const [pending, setPending] = useState<'github' | 'local' | null>(null)
+  const [config, setConfig] = useState<{
+    githubEnabled: boolean
+    clientId: string | null
+    localLoginEnabled: boolean
+  } | null>(null)
 
-  const features = [
-    {
-      icon: Monitor,
-      title: "Real-time Tracking",
-      description: "Track your coding activity across VS Code and Cursor"
-    },
-    {
-      icon: Code,
-      title: "Language Analytics",
-      description: "Detailed insights into your programming languages"
-    },
-    {
-      icon: TrendingUp,
-      title: "Productivity Metrics",
-      description: "Analyze your coding patterns and productivity trends"
-    }
-  ]
+  useEffect(() => {
+    apiClient.getAuthConfig().then((res) => {
+      if (res.success && res.data) setConfig(res.data)
+    })
+  }, [])
 
-  const handleGitHubLogin = () => {
-    if (isLoading || authLoading) return;
-    
-    setIsLoading(true)
-    
-    // Set up the callback function
-    window.github_oauth_callback = async (authData) => {
-      try {
-        if (authData.error) {
-          console.error('GitHub OAuth error:', authData.error)
-          toast.error(authData.error, {
-            duration: 5000,
-            icon: <AlertCircle className="w-5 h-5" />
-          })
-          setIsLoading(false)
-          return
-        }
-
-        if (authData.success && authData.user && authData.access_token) {
-          // Authentication was successful, update the auth store directly
-          const { setUser, setLoading } = useAuthStore.getState()
-          setUser(authData.user)
-          setLoading(false)
-          
-          const welcomeMessage = authData.is_new_user 
-            ? `Welcome to AFK Monitor, ${authData.user.username}! 🎉`
-            : `Welcome back, ${authData.user.username}! 👋`
-          
-          toast.success(welcomeMessage, {
-            duration: 4000,
-            icon: <CheckCircle className="w-5 h-5" />
-          })
-          
-          setIsLoading(false)
-          return
-        }
-
-        // If we get here, something unexpected happened
-        toast.error('Authentication completed but no user data received', {
-          duration: 5000,
-          icon: <AlertCircle className="w-5 h-5" />
-        })
-        
-      } catch (err) {
-        console.error('Login callback error:', err)
-        toast.error('Authentication failed. Please try again.', {
-          duration: 5000,
-          icon: <AlertCircle className="w-5 h-5" />
-        })
-      } finally {
-        setIsLoading(false)
-        // Clean up the callback
-        delete window.github_oauth_callback
+  /* The popup calls back into the opener once the backend has exchanged the code. */
+  useEffect(() => {
+    window.github_oauth_callback = (result) => {
+      setPending(null)
+      if (result.error) {
+        toast.error(result.error)
+        return
+      }
+      if (result.user && result.access_token) {
+        setUser(result.user, result.access_token)
+        toast.success(
+          result.is_new_user
+            ? `Welcome to AFK Monitor, ${result.user.username}`
+            : `Welcome back, ${result.user.username}`
+        )
       }
     }
-
-    // Validate GitHub client ID
-    const githubClientId = import.meta.env.VITE_GITHUB_CLIENT_ID
-    if (!githubClientId) {
-      toast.error('GitHub authentication is not configured. Please check your environment variables.', {
-        duration: 8000,
-        icon: <AlertCircle className="w-5 h-5" />
-      })
-      setIsLoading(false)
+    return () => {
       delete window.github_oauth_callback
+    }
+  }, [setUser])
+
+  const handleGitHub = () => {
+    if (!config?.clientId) {
+      toast.error('GitHub OAuth is not configured on the server')
+      return
+    }
+    setPending('github')
+
+    const redirect = `${window.location.origin}/auth/callback`
+    const url =
+      `https://github.com/login/oauth/authorize?client_id=${encodeURIComponent(config.clientId)}` +
+      `&redirect_uri=${encodeURIComponent(redirect)}&scope=read:user%20user:email`
+
+    const w = 520
+    const h = 680
+    const left = window.screenX + (window.outerWidth - w) / 2
+    const top = window.screenY + (window.outerHeight - h) / 2
+    const popup = window.open(url, 'github-oauth', `width=${w},height=${h},left=${left},top=${top}`)
+
+    if (!popup) {
+      setPending(null)
+      toast.error('Popup blocked — allow popups for this site and try again')
       return
     }
 
-    try {
-      // Open GitHub OAuth popup
-      const redirectUri = `${window.location.origin}/auth/github/callback`
-      const scope = 'user:email'
-      const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${encodeURIComponent(githubClientId)}&scope=${encodeURIComponent(scope)}&redirect_uri=${encodeURIComponent(redirectUri)}`
-      
-      const popup = window.open(
-        githubAuthUrl,
-        'github-oauth',
-        'width=600,height=700,scrollbars=yes,resizable=yes,left=' + (window.screen.width / 2 - 300) + ',top=' + (window.screen.height / 2 - 350)
-      )
-
-      if (!popup) {
-        toast.error('Popup was blocked. Please allow popups for this site and try again.', {
-          duration: 8000,
-          icon: <AlertCircle className="w-5 h-5" />
-        })
-        setIsLoading(false)
-        delete window.github_oauth_callback
-        return
+    // A popup that closes without calling back means the user abandoned the flow.
+    const timer = setInterval(() => {
+      if (popup.closed) {
+        clearInterval(timer)
+        setPending((p) => (p === 'github' ? null : p))
       }
+    }, 600)
+  }
 
-      // Check if popup was closed manually
-      const checkClosed = setInterval(() => {
-        if (popup?.closed) {
-          clearInterval(checkClosed)
-          if (isLoading) {
-            toast('Authentication was cancelled', {
-              duration: 3000
-            })
-          }
-          setIsLoading(false)
-          delete window.github_oauth_callback
-        }
-      }, 1000)
-
-      // Set a timeout in case the popup doesn't respond
-      setTimeout(() => {
-        if (popup && !popup.closed) {
-          popup.close()
-          clearInterval(checkClosed)
-          if (isLoading) {
-            toast.error('Authentication timed out. Please try again.', {
-              duration: 5000,
-              icon: <AlertCircle className="w-5 h-5" />
-            })
-          }
-          setIsLoading(false)
-          delete window.github_oauth_callback
-        }
-      }, 60000) // 60 second timeout
-
-    } catch (err) {
-      console.error('Error opening GitHub OAuth popup:', err)
-      toast.error('Failed to open authentication popup. Please try again.', {
-        duration: 5000,
-        icon: <AlertCircle className="w-5 h-5" />
-      })
-      setIsLoading(false)
-      delete window.github_oauth_callback
+  const handleLocal = async () => {
+    setPending('local')
+    const res = await apiClient.localLogin()
+    setPending(null)
+    if (res.success && res.data) {
+      setUser(res.data.user, res.data.access_token)
+      toast.success('Signed in locally')
+    } else {
+      toast.error(res.success === false ? res.error : 'Local sign-in failed')
     }
   }
 
-  useEffect(() => {
-    if (error) {
-      toast.error(error, {
-        duration: 5000,
-        icon: <AlertCircle className="w-5 h-5" />
-      })
-    }
-  }, [error])
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 flex items-center justify-center p-4">
-      <div className="w-full max-w-4xl mx-auto">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-8"
-        >
-          <div className="flex items-center justify-center mb-4">
-            <Monitor className="w-12 h-12 text-primary mr-3" />
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
-              AFK Monitor
+    <div className="relative grid min-h-screen place-items-center px-6 py-10">
+      <motion.div
+        initial={{ y: 16 }}
+        animate={{ y: 0 }}
+        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+        className="relative w-full max-w-4xl overflow-hidden rounded-3xl glass glass-edge glow-ring"
+      >
+        <Spotlight size={600} />
+
+        <div className="relative z-10 grid gap-10 p-8 md:grid-cols-2 md:p-12">
+          <div className="flex flex-col justify-center">
+            <div className="flex items-center gap-3">
+              <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-primary to-primary/60 shadow-lg shadow-primary/25">
+                <Terminal className="h-5 w-5 text-primary-foreground" />
+              </div>
+              <div>
+                <p className="font-mono text-sm font-semibold">AFK Monitor</p>
+                <p className="text-[11px] text-muted-foreground">Coding analytics</p>
+              </div>
+            </div>
+
+            <h1 className="mt-7 text-3xl font-semibold leading-tight tracking-tight text-gradient sm:text-4xl">
+              Know where your hours actually went
             </h1>
-          </div>
-          <p className="text-xl text-muted-foreground">
-            Track your coding productivity with detailed analytics
-          </p>
-        </motion.div>
+            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+              Sign in to see your sessions, languages and projects — collected
+              automatically while you code.
+            </p>
 
-        <div className="grid md:grid-cols-2 gap-8 items-center">
-          {/* Features */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="space-y-6"
-          >
-            <h2 className="text-2xl font-semibold text-foreground">
-              Why Choose AFK Monitor?
-            </h2>
-            {features.map((feature, index) => (
-              <motion.div
-                key={feature.title}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.3 + index * 0.1 }}
-                className="flex items-start space-x-4"
-              >
-                <div className="flex-shrink-0 w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                  <feature.icon className="w-5 h-5 text-primary" />
-                </div>
-                <div>
-                  <h3 className="font-medium text-foreground">{feature.title}</h3>
-                  <p className="text-sm text-muted-foreground">{feature.description}</p>
-                </div>
-              </motion.div>
-            ))}
-          </motion.div>
+            <div className="mt-8 space-y-3">
+              {config?.githubEnabled && (
+                <Magnetic strength={0.2}>
+                  <Button
+                    onClick={handleGitHub}
+                    disabled={pending !== null}
+                    className="h-11 w-full rounded-xl text-sm font-medium"
+                  >
+                    {pending === 'github' ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Github className="mr-2 h-4 w-4" />
+                    )}
+                    Continue with GitHub
+                  </Button>
+                </Magnetic>
+              )}
 
-          {/* Login Card */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
-          >
-            <Card className="border-0 shadow-xl bg-card/50 backdrop-blur-sm">
-              <CardHeader className="text-center">
-                <CardTitle className="text-2xl">Get Started</CardTitle>
-                <CardDescription>
-                  Sign in with your GitHub account to start tracking your coding activity
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
+              {config?.localLoginEnabled && (
                 <Button
-                  onClick={handleGitHubLogin}
-                  disabled={isLoading || authLoading}
-                  className="w-full h-12 text-base bg-[#24292e] hover:bg-[#24292e]/90 text-white"
-                  size="lg"
+                  variant={config.githubEnabled ? 'outline' : 'default'}
+                  onClick={handleLocal}
+                  disabled={pending !== null}
+                  className="h-11 w-full rounded-xl text-sm font-medium"
                 >
-                  {isLoading || authLoading ? (
-                    <>
-                      <div className="w-5 h-5 mr-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Authenticating...
-                    </>
+                  {pending === 'local' ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
-                    <>
-                      <Github className="w-5 h-5 mr-3" />
-                      Continue with GitHub
-                    </>
+                    <Terminal className="mr-2 h-4 w-4" />
                   )}
+                  Continue as local developer
                 </Button>
-                <p className="text-xs text-muted-foreground text-center">
-                  By continuing, you agree to our terms of service and privacy policy.
-                  We only access your public profile information.
+              )}
+
+              {config && !config.githubEnabled && !config.localLoginEnabled && (
+                <p className="rounded-xl bg-destructive/10 px-4 py-3 text-xs text-destructive ring-1 ring-destructive/25">
+                  No sign-in method is available. Configure GitHub OAuth in{' '}
+                  <span className="font-mono">Backend/.env</span>, or enable debug mode.
                 </p>
-              </CardContent>
-            </Card>
-          </motion.div>
+              )}
+
+              {!config && (
+                <div
+                  className="h-11 w-full rounded-xl skeleton"
+                  aria-label="Loading sign-in options"
+                />
+              )}
+            </div>
+
+            {config && !config.githubEnabled && (
+              <p className="mt-4 text-[11px] leading-relaxed text-muted-foreground/80">
+                GitHub sign-in appears once <span className="font-mono">GITHUB_CLIENT_ID</span> and{' '}
+                <span className="font-mono">GITHUB_CLIENT_SECRET</span> are set in{' '}
+                <span className="font-mono">Backend/.env</span>.
+              </p>
+            )}
+          </div>
+
+          <ul className="flex flex-col justify-center gap-5 md:border-l md:border-border/60 md:pl-10">
+            {FEATURES.map((f) => (
+              <li key={f.title} className="flex gap-3">
+                <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/12 ring-1 ring-inset ring-primary/25">
+                  <f.icon className="h-4 w-4 text-primary" />
+                </span>
+                <div>
+                  <p className="text-sm font-medium">{f.title}</p>
+                  <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{f.body}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
         </div>
-      </div>
+      </motion.div>
     </div>
   )
 }
 
-export default LoginPage 
+export default LoginPage

@@ -11,7 +11,10 @@ import TimelinePage from './components/timeline/TimelinePage'
 import TokenPage from './components/settings/TokenPage'
 import Sidebar from './components/layout/Sidebar'
 import Header from './components/layout/Header'
+import LoginPage from './components/auth/LoginPage'
+import GitHubCallback from './components/auth/GitHubCallback'
 import { AmbientBackground } from './components/ui/motion'
+import { useAuthStore } from './store/authStore'
 import type { TimeFilter } from './types/api'
 
 const queryClient = new QueryClient({
@@ -79,17 +82,43 @@ const MainLayout = () => {
 }
 
 const App = () => {
+  const { initializeUser, isAuthenticated, isLoading } = useAuthStore()
+
   // Honour a previously chosen theme; dark is the default set on <html>.
   useEffect(() => {
     const saved = localStorage.getItem('afk_theme')
     if (saved === 'light') document.documentElement.classList.remove('dark')
   }, [])
 
+  useEffect(() => {
+    initializeUser()
+  }, [initializeUser])
+
+  /*
+   * The OAuth popup lands on /auth/callback. It runs in its own window, hands
+   * the result back to the opener and closes itself, so it must render before
+   * any auth gate — it is the thing that produces the session.
+   */
+  const isCallback = window.location.pathname === '/auth/callback'
+
   return (
     <QueryClientProvider client={queryClient}>
       <div className="min-h-screen bg-background text-foreground">
         <AmbientBackground />
-        <MainLayout />
+        {isCallback ? (
+          <GitHubCallback />
+        ) : isLoading ? (
+          <div className="grid min-h-screen place-items-center">
+            <div className="flex items-center gap-3 text-muted-foreground">
+              <span className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              <p className="text-sm">Loading AFK Monitor…</p>
+            </div>
+          </div>
+        ) : isAuthenticated ? (
+          <MainLayout />
+        ) : (
+          <LoginPage />
+        )}
         <Toaster
           position="top-right"
           toastOptions={{

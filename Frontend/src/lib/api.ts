@@ -65,6 +65,23 @@ class ApiClient {
     return this.request('GET', '/api/auth/me');
   }
 
+  /** Which sign-in methods this server actually offers. */
+  async getAuthConfig(): Promise<
+    ApiResponse<{ githubEnabled: boolean; clientId: string | null; localLoginEnabled: boolean }>
+  > {
+    return this.request('GET', '/api/auth/config');
+  }
+
+  async exchangeGitHubCode(
+    code: string
+  ): Promise<ApiResponse<{ user: User; access_token: string; is_new_user: boolean }>> {
+    return this.request('POST', '/api/auth/github/callback', { code });
+  }
+
+  async localLogin(): Promise<ApiResponse<{ user: User; access_token: string }>> {
+    return this.request('POST', '/api/auth/local');
+  }
+
   // Session endpoints
   async createSession(data: SessionRequest): Promise<ApiResponse<void>> {
     return this.request('POST', '/api/sessions', data);

@@ -45,8 +45,12 @@ const GitHubCallback = () => {
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({ error: 'Network error occurred' }));
           if (window.opener && window.opener.github_oauth_callback) {
-            window.opener.github_oauth_callback({ 
-              error: errorData.error || `Authentication failed with status ${response.status}` 
+            window.opener.github_oauth_callback({
+              // FastAPI reports failures as `detail`; keep `error` for our own shape.
+              error:
+                errorData.detail ||
+                errorData.error ||
+                `Authentication failed with status ${response.status}`
             });
           }
           window.close();
@@ -71,7 +75,8 @@ const GitHubCallback = () => {
             success: true,
             user: result.data.user,
             access_token: result.data.access_token,
-            is_new_user: result.data.user.is_new_user
+            // Sits alongside `user` in the payload, not inside it.
+            is_new_user: result.data.is_new_user
           });
         }
 
