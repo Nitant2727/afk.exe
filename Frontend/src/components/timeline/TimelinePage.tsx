@@ -1,240 +1,206 @@
-import { useState, useEffect } from 'react'
-import { Calendar, Activity, GitCommit } from 'lucide-react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
-import { formatDuration, formatDate } from '../../lib/utils'
+import { useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { CalendarDays, Flame, TrendingUp, Clock } from 'lucide-react'
+import { Metric, Panel, EmptyState, MetricSkeletons } from '../ui/data-display'
+import { formatDuration, cn } from '../../lib/utils'
 import { apiClient } from '../../lib/api'
-import type { DailyStats, TimeFilter, FileSession } from '../../types/api'
+import type { DailyStats, TimeFilter } from '../../types/api'
 
 interface TimelinePageProps {
   timeFilter: TimeFilter
 }
 
+const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
 const TimelinePage = ({ timeFilter }: TimelinePageProps) => {
-  const [dailyData, setDailyData] = useState<DailyStats[]>([])
-  const [recentSessions, setRecentSessions] = useState<FileSession[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { data, isLoading } = useQuery({
+    queryKey: ['daily', timeFilter],
+    queryFn: () => apiClient.getDailyStatistics({ time_filter: timeFilter }),
+  })
 
-  const fetchData = async () => {
-    try {
-      setLoading(true)
-      setError(null)
+  const daily = ((data?.success ? data.data : []) ?? []) as DailyStats[]
 
-      const params = { time_filter: timeFilter }
+  const summary = useMemo(() => {
+    if (daily.length === 0) return null
 
-      const [dailyResponse, sessionsResponse] = await Promise.all([
-        apiClient.getDailyStatistics(params),
-        apiClient.getSessions({ limit: 20, offset: 0 })
-      ])
+    const totalDuration = daily.reduce((s, d) => s + d.duration, 0)
+    const best = daily.reduce((b, d) => (d.duration > b.duration ? d : b), daily[0])
 
-      if (dailyResponse.success && dailyResponse.data && Array.isArray(dailyResponse.data)) {
-        setDailyData(dailyResponse.data)
-      } else {
-        setDailyData([])
-      }
-
-      if (sessionsResponse.success && sessionsResponse.data?.sessions && Array.isArray(sessionsResponse.data.sessions)) {
-        setRecentSessions(sessionsResponse.data.sessions)
-      } else {
-        setRecentSessions([])
-      }
-
-    } catch (err) {
-      console.error('Failed to fetch timeline data:', err)
-      setError('Failed to load timeline data')
-    } finally {
-      setLoading(false)
+    // Longest run of consecutive tracked days, counting back from the latest.
+    const sorted = [...daily].sort((a, b) => a.date.localeCompare(b.date))
+    let streak = 0
+    let longest = 0
+    let prev: Date | null = null
+    for (const d of sorted) {
+      const day = new Date(d.date)
+      if (prev && (day.getTime() - prev.getTime()) / 86_400_000 === 1) streak += 1
+      else streak = 1
+      longest = Math.max(longest, streak)
+      prev = day
     }
-  }
 
-  useEffect(() => {
-    fetchData()
-  }, [timeFilter])
-
-  // Calculate streak information
-  const streakInfo = (() => {
-    if (dailyData.length === 0) return { current: 0, longest: 0 }
-    
-    let currentStreak = 0
-    let longestStreak = 0
-    let tempStreak = 0
-    
-    // Sort by date descending to calculate current streak
-    const sortedData = [...dailyData].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    
-    // Calculate current streak
-    for (const day of sortedData) {
-      if (day.duration > 0) {
-        currentStreak++
-      } else {
-        break
-      }
+    // Which weekday carries the most tracked time.
+    const byWeekday = new Array(7).fill(0)
+    for (const d of daily) {
+      const idx = (new Date(d.date).getDay() + 6) % 7
+      byWeekday[idx] += d.duration
     }
-    
-    // Calculate longest streak
-    for (const day of dailyData) {
-      if (day.duration > 0) {
-        tempStreak++
-        longestStreak = Math.max(longestStreak, tempStreak)
-      } else {
-        tempStreak = 0
-      }
+    const topIdx = byWeekday.indexOf(Math.max(...byWeekday))
+
+    return {
+      totalDuration,
+      best,
+      longest,
+      activeDays: daily.length,
+      byWeekday,
+      topWeekday: byWeekday[topIdx] > 0 ? WEEKDAYS[topIdx] : '—',
+      avgPerDay: totalDuration / daily.length,
     }
-    
-    return { current: currentStreak, longest: longestStreak }
-  })()
+  }, [daily])
 
-  if (loading) {
-    return (
-      <div className="p-6 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-        <p className="ml-3 text-muted-foreground">Loading timeline...</p>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="p-6 flex items-center justify-center">
-        <Card className="max-w-md">
-          <CardHeader>
-            <CardTitle className="text-red-600">Error</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">{error}</p>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
+  const maxDuration = Math.max(...daily.map((d) => d.duration), 1)
+  const maxWeekday = Math.max(...(summary?.byWeekday ?? [1]), 1)
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold">Activity Timeline</h1>
-        <p className="text-muted-foreground">Your coding activity over time</p>
-      </div>
+    <div className="space-y-4 p-5">
+      {isLoading ? (
+        <MetricSkeletons />
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Metric
+            label="Active days"
+            icon={CalendarDays}
+            value={summary?.activeDays ?? 0}
+            count={{ to: summary?.activeDays ?? 0 }}
+            sub="Days with tracked time"
+          />
+          <Metric
+            label="Best day"
+            icon={Flame}
+            value={
+              summary?.best
+                ? new Date(summary.best.date).toLocaleDateString(undefined, {
+                    month: 'short',
+                    day: 'numeric',
+                  })
+                : '—'
+            }
+            sub={summary?.best ? `${formatDuration(summary.best.duration)} tracked` : 'No data'}
+            invert
+          />
+          <Metric
+            label="Longest streak"
+            icon={TrendingUp}
+            value={summary?.longest ?? 0}
+            count={{ to: summary?.longest ?? 0 }}
+            sub={`Consecutive ${summary?.longest === 1 ? 'day' : 'days'}`}
+          />
+          <Metric
+            label="Daily average"
+            icon={Clock}
+            value={formatDuration(summary?.avgPerDay ?? 0)}
+            count={{ to: summary?.avgPerDay ?? 0, format: formatDuration }}
+            sub={summary ? `Busiest on ${summary.topWeekday}` : '—'}
+          />
+        </div>
+      )}
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Current Streak</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{streakInfo.current}</div>
-            <p className="text-xs text-muted-foreground">Consecutive coding days</p>
-          </CardContent>
-        </Card>
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
+        <Panel
+          title="Daily breakdown"
+          aside={
+            summary ? (
+              <span className="tabular font-mono text-xs text-muted-foreground">
+                {formatDuration(summary.totalDuration)} total
+              </span>
+            ) : undefined
+          }
+        >
+          {daily.length === 0 ? (
+            <EmptyState message="No activity in this range" />
+          ) : (
+            <ol className="space-y-1">
+              {[...daily]
+                .sort((a, b) => b.date.localeCompare(a.date))
+                .map((d, i) => {
+                  const pct = Math.round((d.duration / maxDuration) * 100)
+                  const date = new Date(d.date)
+                  const isTop = d.date === summary?.best.date
+                  return (
+                    <li
+                      key={d.date}
+                      className="group flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-foreground/[0.03]"
+                    >
+                      <div className="w-20 shrink-0">
+                        <p className="text-xs font-medium">
+                          {date.toLocaleDateString(undefined, {
+                            month: 'short',
+                            day: 'numeric',
+                          })}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {WEEKDAYS[(date.getDay() + 6) % 7]}
+                        </p>
+                      </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Longest Streak</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{streakInfo.longest}</div>
-            <p className="text-xs text-muted-foreground">Best streak achieved</p>
-          </CardContent>
-        </Card>
+                      <div className="h-2 flex-1 overflow-hidden rounded-full bg-foreground/[0.07]">
+                        <div
+                          className={cn(
+                            'h-full origin-left rounded-full',
+                            isTop ? 'bg-primary' : 'bg-primary/45'
+                          )}
+                          style={{
+                            transform: `scaleX(${Math.max(0.015, pct / 100)})`,
+                            transition: `transform 0.7s cubic-bezier(0.16,1,0.3,1) ${
+                              Math.min(i, 12) * 0.04
+                            }s`,
+                          }}
+                        />
+                      </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Days</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {dailyData.filter(day => day.duration > 0).length}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Out of {dailyData.length} days
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Daily Activity */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Daily Activity</CardTitle>
-          <CardDescription>Your coding activity over the last few days</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {dailyData.length > 0 ? (
-            <div className="space-y-3">
-              {dailyData.slice(-10).reverse().map((day) => (
-                <div key={day.date} className="flex items-center justify-between p-3 border rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <Calendar className="h-4 w-4 text-blue-500" />
-                    <div>
-                      <p className="font-medium">{formatDate(day.date)}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {day.sessions} sessions
+                      <p className="w-16 shrink-0 text-right tabular text-xs text-muted-foreground">
+                        {d.sessions} {d.sessions === 1 ? 'session' : 'sessions'}
                       </p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-medium">{formatDuration(day.duration)}</p>
-                    <div className="w-20 bg-muted rounded-full h-2 mt-1">
-                      <div 
-                        className="h-2 bg-blue-500 rounded-full"
-                        style={{ 
-                          width: `${Math.min((day.duration / Math.max(...dailyData.map(d => d.duration))) * 100, 100)}%` 
+                      <p className="w-16 shrink-0 text-right tabular font-mono text-sm">
+                        {formatDuration(d.duration)}
+                      </p>
+                    </li>
+                  )
+                })}
+            </ol>
+          )}
+        </Panel>
+
+        <Panel title="By weekday">
+          {!summary ? (
+            <EmptyState message="No data" />
+          ) : (
+            <ul className="space-y-2.5">
+              {WEEKDAYS.map((day, i) => {
+                const value = summary.byWeekday[i]
+                const pct = Math.round((value / maxWeekday) * 100)
+                return (
+                  <li key={day} className="flex items-center gap-2.5">
+                    <span className="w-8 shrink-0 text-xs text-muted-foreground">{day}</span>
+                    <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-foreground/[0.07]">
+                      <span
+                        className="block h-full origin-left rounded-full bg-primary/70"
+                        style={{
+                          transform: `scaleX(${Math.max(0.01, pct / 100)})`,
+                          transition: `transform 0.7s cubic-bezier(0.16,1,0.3,1) ${i * 0.05}s`,
                         }}
                       />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              No activity data available
-            </div>
+                    </span>
+                    <span className="w-14 shrink-0 text-right tabular font-mono text-xs text-muted-foreground">
+                      {value ? formatDuration(value) : '—'}
+                    </span>
+                  </li>
+                )
+              })}
+            </ul>
           )}
-        </CardContent>
-      </Card>
-
-      {/* Recent Sessions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Sessions</CardTitle>
-          <CardDescription>Your latest coding sessions</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {recentSessions.length > 0 ? (
-            <div className="space-y-3">
-              {recentSessions.map((session) => (
-                <div
-                  key={session.id}
-                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-center space-x-3">
-                    <GitCommit className="w-4 h-4 text-blue-500" />
-                    <div>
-                      <p className="font-medium">{session.fileName}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {session.projectName} • {session.language}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right text-sm text-muted-foreground">
-                    <p className="font-medium">{formatDuration(session.totalDuration)}</p>
-                    <p>{formatDate(session.sessionStartTime)}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              No recent sessions found
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        </Panel>
+      </div>
     </div>
   )
 }

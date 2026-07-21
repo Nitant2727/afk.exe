@@ -175,11 +175,17 @@ async def get_sessions(
     projectName: Optional[str] = Query(None, alias="projectName"),
     language: Optional[str] = Query(None),
     from_date: Optional[datetime] = Query(None, alias="from"),
-    to_date: Optional[datetime] = Query(None, alias="to")
+    to_date: Optional[datetime] = Query(None, alias="to"),
+    time_filter: Optional[TimeFilter] = Query(None),
+    start_date: Optional[datetime] = Query(None),
+    end_date: Optional[datetime] = Query(None)
 ):
     """
-    Get file sessions with optional filtering.
-    No authentication required.
+    Get the signed-in user's file sessions, with optional filtering.
+
+    Accepts `time_filter` for parity with the stats endpoints — without it this
+    route silently returned every session regardless of the range selected in
+    the UI. Explicit `from`/`to` still win when both are supplied.
     """
     try:
         # Build query for user's sessions
@@ -190,6 +196,14 @@ async def get_sessions(
             query = query.where(FileSession.project_name == projectName)
         if language:
             query = query.where(FileSession.language == language)
+
+        if time_filter and not (from_date or to_date):
+            range_start, range_end = get_time_range(time_filter, start_date, end_date)
+            if range_start:
+                query = query.where(FileSession.session_start_time >= range_start)
+            if range_end:
+                query = query.where(FileSession.session_start_time <= range_end)
+
         if from_date:
             query = query.where(FileSession.session_start_time >= from_date)
         if to_date:

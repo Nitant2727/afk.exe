@@ -116,6 +116,13 @@ class ApiClient {
     return this.request('GET', '/api/sessions/stats/daily', undefined, params);
   }
 
+  /** Time-of-day distribution, 24 buckets. */
+  async getHourlyStatistics(
+    params?: StatsQueryParams
+  ): Promise<ApiResponse<Array<{ hour: string; duration: number }>>> {
+    return this.request('GET', '/api/sessions/stats/hourly', undefined, params);
+  }
+
   // Health check
   async healthCheck(): Promise<ApiResponse<{ status: string; timestamp: string }>> {
     return this.request('GET', '/api/health');

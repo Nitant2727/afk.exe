@@ -1,407 +1,303 @@
-import { useState, useEffect, useMemo } from 'react'
-import { motion } from 'framer-motion'
-import { 
-  Calendar, 
-  Clock, 
-  Code, 
-  FileText, 
-  Filter,
-  Search,
-
-
-} from 'lucide-react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
-import { Button } from '../ui/button'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
-import { formatDuration, formatDate } from '../../lib/utils'
+import { useMemo, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { FileText, Clock, Pencil, Search, X } from 'lucide-react'
+import {
+  Metric,
+  Panel,
+  EmptyState,
+  MetricSkeletons,
+  ACCENT_SOLID,
+} from '../ui/data-display'
+import { formatDuration, cn } from '../../lib/utils'
 import { apiClient } from '../../lib/api'
-import type { FileSession, TimeFilter } from '../../types/api'
+import type { FileSession, LanguageStats, TimeFilter } from '../../types/api'
 
 interface SessionsPageProps {
   timeFilter: TimeFilter
 }
 
+const PAGE_SIZE = 25
+
 const SessionsPage = ({ timeFilter }: SessionsPageProps) => {
-  const [sessions, setSessions] = useState<FileSession[]>([])
-  const [totalSessions, setTotalSessions] = useState(0)
-  const [projects, setProjects] = useState<string[]>([])
-  const [languages, setLanguages] = useState<string[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  
-  // Filters
-  const [searchTerm, setSearchTerm] = useState('')
-  const [selectedProject, setSelectedProject] = useState<string>('all')
-  const [selectedLanguage, setSelectedLanguage] = useState<string>('all')
-  const [sortBy, setSortBy] = useState<'date' | 'duration' | 'name'>('date')
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
-  
-  // Pagination
-  const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage] = useState(20)
+  const [project, setProject] = useState<string>('')
+  const [language, setLanguage] = useState<string>('')
+  const [query, setQuery] = useState('')
+  const [page, setPage] = useState(0)
 
-  const fetchData = async () => {
-    try {
-      setLoading(true)
-      setError(null)
+  const params = { time_filter: timeFilter }
 
-      // Build query parameters
-      const params: any = {
-        limit: 1000, // Get more to handle client-side filtering
-        offset: 0
-      }
+  const sessionsQ = useQuery({
+    queryKey: ['sessions', timeFilter, project, language, page],
+    queryFn: () =>
+      apiClient.getSessions({
+        ...params,
+        limit: PAGE_SIZE,
+        offset: page * PAGE_SIZE,
+        ...(project ? { projectName: project } : {}),
+        ...(language ? { language } : {}),
+      }),
+  })
+  const projectsQ = useQuery({
+    queryKey: ['projectNames'],
+    queryFn: () => apiClient.getUniqueProjects(),
+  })
+  const languagesQ = useQuery({
+    queryKey: ['languageStats', timeFilter],
+    queryFn: () => apiClient.getLanguageStatistics(params),
+  })
 
-      // Convert timeFilter to date range for sessions endpoint
-      const now = new Date()
-      let fromDate: Date | null = null
-      
-      switch (timeFilter) {
-        case 'today':
-          fromDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-          break
-        case 'yesterday':
-          fromDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)
-          params.to = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
-          break
-        case 'this_week':
-          const startOfWeek = new Date(now)
-          startOfWeek.setDate(now.getDate() - now.getDay())
-          fromDate = startOfWeek
-          break
-        case 'last_7_days':
-          fromDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-          break
-        case 'this_month':
-          fromDate = new Date(now.getFullYear(), now.getMonth(), 1)
-          break
-        case 'last_30_days':
-          fromDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
-          break
-      }
-      
-      if (fromDate) {
-        params.from = fromDate.toISOString()
-      }
+  const sessions = ((sessionsQ.data?.success ? sessionsQ.data.data?.sessions : []) ??
+    []) as FileSession[]
+  const total = (sessionsQ.data?.success ? sessionsQ.data.data?.total : 0) ?? 0
+  const projectNames = ((projectsQ.data?.success ? projectsQ.data.data : []) ?? []) as string[]
+  const languages = ((languagesQ.data?.success ? languagesQ.data.data : []) ??
+    []) as LanguageStats[]
 
-      // Add project and language filters if selected
-      if (selectedProject !== 'all') {
-        params.projectName = selectedProject
-      }
-      if (selectedLanguage !== 'all') {
-        params.language = selectedLanguage
-      }
-
-      // Fetch sessions and filter data
-      const [sessionsResponse, projectsResponse, languagesResponse] = await Promise.all([
-        apiClient.getSessions(params),
-        apiClient.getUniqueProjects(),
-        apiClient.getUniqueLanguages()
-      ])
-
-      if (sessionsResponse.success && sessionsResponse.data?.sessions && Array.isArray(sessionsResponse.data.sessions)) {
-        setSessions(sessionsResponse.data.sessions)
-        setTotalSessions(sessionsResponse.data.total || 0)
-      } else {
-        setSessions([])
-        setTotalSessions(0)
-      }
-
-      if (projectsResponse.success && projectsResponse.data && Array.isArray(projectsResponse.data)) {
-        setProjects(projectsResponse.data)
-      } else {
-        setProjects([])
-      }
-
-      if (languagesResponse.success && languagesResponse.data && Array.isArray(languagesResponse.data)) {
-        setLanguages(languagesResponse.data)
-      } else {
-        setLanguages([])
-      }
-
-    } catch (err) {
-      console.error('Failed to fetch sessions:', err)
-      setError('Failed to load sessions data')
-    } finally {
-      setLoading(false)
-    }
+  /*
+   * Colour is keyed by language rather than row position, so the same language
+   * is always the same colour down the page.
+   */
+  const colorFor = (name: string) => {
+    const i = languages.findIndex((l) => l.name === name)
+    if (i === -1) return ACCENT_SOLID[0]
+    const c = (languages[i] as LanguageStats & { color?: string }).color
+    // #6b7280 is the backend's "unknown language" grey, not a real colour.
+    if (c && c.toLowerCase() !== '#6b7280') return c
+    return ACCENT_SOLID[i % ACCENT_SOLID.length]
   }
 
-  useEffect(() => {
-    fetchData()
-  }, [timeFilter, selectedProject, selectedLanguage])
-
-  // Filter and sort sessions
-  const filteredSessions = useMemo(() => {
-    let filtered = sessions.filter(session => {
-      const matchesSearch = searchTerm === '' || 
-        session.fileName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        session.projectName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        session.language.toLowerCase().includes(searchTerm.toLowerCase())
-      
-      return matchesSearch
-    })
-
-    // Sort sessions
-    filtered.sort((a, b) => {
-      let comparison = 0
-      
-      switch (sortBy) {
-        case 'date':
-          comparison = new Date(a.sessionStartTime).getTime() - new Date(b.sessionStartTime).getTime()
-          break
-        case 'duration':
-          comparison = a.totalDuration - b.totalDuration
-          break
-        case 'name':
-          comparison = a.fileName.localeCompare(b.fileName)
-          break
-      }
-      
-      return sortOrder === 'desc' ? -comparison : comparison
-    })
-
-    return filtered
-  }, [sessions, searchTerm, sortBy, sortOrder])
-
-  // Paginate sessions
-  const paginatedSessions = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage
-    return filteredSessions.slice(startIndex, startIndex + itemsPerPage)
-  }, [filteredSessions, currentPage, itemsPerPage])
-
-  const totalPages = Math.ceil(filteredSessions.length / itemsPerPage)
-
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: 0.1 }
-    }
-  }
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0 }
-  }
-
-  if (loading) {
-    return (
-      <div className="p-6 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-        <p className="ml-3 text-muted-foreground">Loading sessions...</p>
-      </div>
+  // Free-text filtering is client-side; the API has no search parameter.
+  const visible = useMemo(() => {
+    if (!query.trim()) return sessions
+    const q = query.toLowerCase()
+    return sessions.filter(
+      (s) =>
+        s.fileName.toLowerCase().includes(q) ||
+        s.projectName.toLowerCase().includes(q) ||
+        s.filePath.toLowerCase().includes(q)
     )
+  }, [sessions, query])
+
+  const pageTotals = useMemo(
+    () => ({
+      duration: sessions.reduce((sum, s) => sum + s.totalDuration, 0),
+      edits: sessions.reduce((sum, s) => sum + s.totalEdits, 0),
+    }),
+    [sessions]
+  )
+
+  const lastPage = Math.max(0, Math.ceil(total / PAGE_SIZE) - 1)
+  const filtersActive = Boolean(project || language || query)
+
+  const resetFilters = () => {
+    setProject('')
+    setLanguage('')
+    setQuery('')
+    setPage(0)
   }
 
-  if (error) {
-    return (
-      <div className="p-6 flex items-center justify-center">
-        <Card className="max-w-md">
-          <CardHeader>
-            <CardTitle className="text-red-600">Error</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground mb-4">{error}</p>
-            <Button onClick={fetchData}>Retry</Button>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
+  const selectClass =
+    'h-8 rounded-lg border border-border/80 bg-foreground/[0.03] px-2 text-xs outline-none transition-colors focus:border-primary/50'
 
   return (
-    <motion.div
-      className="p-6 space-y-6"
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-    >
-      {/* Header */}
-      <motion.div variants={itemVariants}>
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold">Coding Sessions</h1>
-            <p className="text-muted-foreground">
-              {totalSessions} total sessions • {filteredSessions.length} filtered
-            </p>
-          </div>
+    <div className="space-y-4 p-5">
+      {sessionsQ.isLoading ? (
+        <MetricSkeletons count={3} />
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Metric
+            label="Sessions"
+            icon={FileText}
+            value={total}
+            count={{ to: total }}
+            sub={filtersActive ? 'Matching current filters' : 'In this range'}
+          />
+          <Metric
+            label="Time on this page"
+            icon={Clock}
+            value={formatDuration(pageTotals.duration)}
+            count={{ to: pageTotals.duration, format: formatDuration }}
+            sub={`${sessions.length} of ${total} shown`}
+          />
+          <Metric
+            label="Edits on this page"
+            icon={Pencil}
+            value={pageTotals.edits}
+            count={{ to: pageTotals.edits }}
+            sub={
+              sessions.length
+                ? `Avg ${Math.round(pageTotals.edits / sessions.length)} per session`
+                : '—'
+            }
+          />
         </div>
-      </motion.div>
+      )}
 
-      {/* Filters */}
-      <motion.div variants={itemVariants}>
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Filter className="w-5 h-5" />
-              <span>Filters</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Search */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Search</label>
-                <div className="relative">
-                  <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
-                  <input
-                    type="text"
-                    placeholder="Search files, projects..."
-                    className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              {/* Project Filter */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Project</label>
-                <Select value={selectedProject} onValueChange={setSelectedProject}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All projects" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All projects</SelectItem>
-                    {projects.map(project => (
-                      <SelectItem key={project} value={project}>{project}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Language Filter */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Language</label>
-                <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All languages" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All languages</SelectItem>
-                    {languages.map(language => (
-                      <SelectItem key={language} value={language}>{language}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Sort */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Sort by</label>
-                <div className="flex space-x-2">
-                  <Select value={sortBy} onValueChange={(value: 'date' | 'duration' | 'name') => setSortBy(value)}>
-                    <SelectTrigger className="flex-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="date">Date</SelectItem>
-                      <SelectItem value="duration">Duration</SelectItem>
-                      <SelectItem value="name">Name</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                    className="px-3"
-                  >
-                    {sortOrder === 'desc' ? '↓' : '↑'}
-                  </Button>
-                </div>
-              </div>
+      <Panel
+        title="All sessions"
+        aside={
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Filter files…"
+                aria-label="Filter sessions by file or project"
+                className="h-8 w-40 rounded-lg border border-border/80 bg-foreground/[0.03] pl-7 pr-2 text-xs outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary/50"
+              />
             </div>
-          </CardContent>
-        </Card>
-      </motion.div>
 
-      {/* Sessions List */}
-      <motion.div variants={itemVariants}>
-        <Card>
-          <CardHeader>
-            <CardTitle>Session History</CardTitle>
-            <CardDescription>
-              Showing {paginatedSessions.length} of {filteredSessions.length} sessions
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {paginatedSessions.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                No sessions found matching your criteria.
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {paginatedSessions.map((session) => (
-                  <motion.div
-                    key={session.id}
-                    className="p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-                    whileHover={{ scale: 1.01 }}
-                    whileTap={{ scale: 0.99 }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center space-x-3">
-                          <FileText className="w-5 h-5 text-blue-500 flex-shrink-0" />
-                          <div className="min-w-0 flex-1">
-                            <p className="font-medium truncate">{session.fileName}</p>
-                            <p className="text-sm text-muted-foreground truncate">
-                              {session.projectName} • {session.language}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center space-x-6 text-sm text-muted-foreground">
-                        <div className="flex items-center space-x-1">
-                          <Clock className="w-4 h-4" />
-                          <span>{formatDuration(session.totalDuration)}</span>
-                        </div>
-                        <div className="flex items-center space-x-1">
-                          <Code className="w-4 h-4" />
-                          <span>{session.linesAdded}+ {session.linesDeleted}-</span>
-                        </div>
-                        <div className="flex items-center space-x-1">
-                          <Calendar className="w-4 h-4" />
-                          <span>{formatDate(session.sessionStartTime)}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
+            <select
+              value={project}
+              onChange={(e) => {
+                setProject(e.target.value)
+                setPage(0)
+              }}
+              aria-label="Filter by project"
+              className={selectClass}
+            >
+              <option value="">All projects</option>
+              {projectNames.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={language}
+              onChange={(e) => {
+                setLanguage(e.target.value)
+                setPage(0)
+              }}
+              aria-label="Filter by language"
+              className={selectClass}
+            >
+              <option value="">All languages</option>
+              {languages.map((l) => (
+                <option key={l.name} value={l.name}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
+
+            {filtersActive && (
+              <button
+                onClick={resetFilters}
+                className="flex h-8 items-center gap-1 rounded-lg px-2 text-xs text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
+              >
+                <X className="h-3 w-3" />
+                Clear
+              </button>
             )}
+          </div>
+        }
+      >
+        {visible.length === 0 ? (
+          <EmptyState
+            message={filtersActive ? 'No sessions match these filters' : 'No sessions recorded'}
+            hint={
+              filtersActive
+                ? 'Try clearing a filter or widening the date range.'
+                : 'Start coding with the extension installed, or widen the time range.'
+            }
+          />
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                    <th className="pb-2 text-left font-medium">File</th>
+                    <th className="hidden pb-2 text-left font-medium md:table-cell">Project</th>
+                    <th className="hidden pb-2 text-left font-medium sm:table-cell">Language</th>
+                    <th className="hidden pb-2 text-left font-medium lg:table-cell">Started</th>
+                    <th className="pb-2 text-right font-medium">Edits</th>
+                    <th className="pb-2 text-right font-medium">Duration</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visible.map((s) => (
+                    <tr
+                      key={s.id}
+                      className="border-t border-border/50 transition-colors hover:bg-foreground/[0.03]"
+                    >
+                      <td className="max-w-[15rem] py-2.5 pr-3">
+                        <p className="truncate font-mono text-[13px]">{s.fileName}</p>
+                        <p className="truncate text-[11px] text-muted-foreground">
+                          {s.filePath}
+                        </p>
+                      </td>
+                      <td className="hidden py-2.5 pr-3 text-muted-foreground md:table-cell">
+                        {s.projectName}
+                      </td>
+                      <td className="hidden py-2.5 pr-3 sm:table-cell">
+                        <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                          <span
+                            className="h-2 w-2 shrink-0 rounded-full"
+                            style={{ background: colorFor(s.language) }}
+                          />
+                          {s.language}
+                        </span>
+                      </td>
+                      <td className="hidden py-2.5 pr-3 tabular text-xs text-muted-foreground lg:table-cell">
+                        {new Date(s.sessionStartTime).toLocaleString(undefined, {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </td>
+                      <td className="py-2.5 pl-3 text-right tabular text-muted-foreground">
+                        {s.totalEdits.toLocaleString()}
+                      </td>
+                      <td className="py-2.5 pl-3 text-right tabular font-mono">
+                        {formatDuration(s.totalDuration)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between mt-6">
-                <p className="text-sm text-muted-foreground">
-                  Page {currentPage} of {totalPages}
+            {lastPage > 0 && (
+              <div className="mt-4 flex items-center justify-between border-t border-border/50 pt-3">
+                <p className="text-xs text-muted-foreground">
+                  Page <span className="tabular">{page + 1}</span> of{' '}
+                  <span className="tabular">{lastPage + 1}</span>
                 </p>
-                <div className="flex space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(currentPage - 1)}
-                    disabled={currentPage === 1}
-                  >
-                    Previous
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                  >
-                    Next
-                  </Button>
+                <div className="flex gap-2">
+                  {(['Previous', 'Next'] as const).map((dir) => {
+                    const disabled = dir === 'Previous' ? page === 0 : page >= lastPage
+                    return (
+                      <button
+                        key={dir}
+                        onClick={() =>
+                          setPage((p) =>
+                            dir === 'Previous' ? Math.max(0, p - 1) : Math.min(lastPage, p + 1)
+                          )
+                        }
+                        disabled={disabled}
+                        className={cn(
+                          'rounded-lg border border-border/80 px-2.5 py-1 text-xs transition-colors',
+                          disabled
+                            ? 'cursor-not-allowed opacity-40'
+                            : 'hover:bg-foreground/[0.06]'
+                        )}
+                      >
+                        {dir}
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
             )}
-          </CardContent>
-        </Card>
-      </motion.div>
-    </motion.div>
+          </>
+        )}
+      </Panel>
+    </div>
   )
 }
 
-export default SessionsPage 
+export default SessionsPage
