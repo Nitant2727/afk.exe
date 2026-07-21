@@ -26,7 +26,8 @@ export class Config {
     return {
       enabled: config.get<boolean>('enabled', true),
       serverUrl: config.get<string>('serverUrl', 'http://localhost:8000'),
-      syncInterval: config.get<number>('syncInterval', 10) // Send immediately after each session
+      syncInterval: config.get<number>('syncInterval', 10), // Send immediately after each session
+      apiToken: config.get<string>('apiToken', '')
     };
   }
 

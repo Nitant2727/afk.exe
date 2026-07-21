@@ -7,9 +7,9 @@ import {
   Calendar,
   Languages,
   FolderOpen,
-  Terminal,
   LogOut,
 } from 'lucide-react'
+import { Logo } from '../ui/logo'
 import { useAuthStore } from '../../store/authStore'
 import { cn } from '../../lib/utils'
 
@@ -98,9 +98,7 @@ const Sidebar = ({ activeTab, onTabChange, className }: SidebarProps) => {
     >
       <div className="px-5 py-6">
         <div className="flex items-center gap-3">
-          <div className="relative grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-primary to-primary/60 shadow-lg shadow-primary/25">
-            <Terminal className="h-4 w-4 text-primary-foreground" />
-          </div>
+          <Logo size="md" />
           <div className="min-w-0">
             <h2 className="truncate font-mono text-[15px] font-semibold tracking-tight">
               AFK Monitor

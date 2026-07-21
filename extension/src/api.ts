@@ -5,14 +5,21 @@ import { SessionData, ApiResponse } from './types';
  */
 export class ApiClient {
   private baseUrl: string;
+  private apiToken = '';
 
-  constructor(baseUrl: string) {
+  constructor(baseUrl: string, apiToken = '') {
+    this.apiToken = apiToken;
     this.baseUrl = baseUrl.replace(/\/$/, ''); // Remove trailing slash
   }
 
   /**
    * Update server URL
    */
+  /** Token used to attribute sessions to an account; blank when unauthenticated. */
+  public setToken(apiToken: string): void {
+    this.apiToken = apiToken || '';
+  }
+
   public updateUrl(baseUrl: string): void {
     this.baseUrl = baseUrl.replace(/\/$/, '');
   }
@@ -25,6 +32,9 @@ export class ApiClient {
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       };
+      if (this.apiToken) {
+        headers['Authorization'] = `Bearer ${this.apiToken}`;
+      }
 
       const response = await fetch(`${this.baseUrl}/api/sessions`, {
         method: 'POST',

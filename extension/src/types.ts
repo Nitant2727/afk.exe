@@ -34,7 +34,8 @@ export interface SessionData {
 export interface ExtensionConfig {
   enabled: boolean;
   serverUrl: string;
-  syncInterval: number; // seconds
+  syncInterval: number;
+  apiToken: string; // seconds
 }
 
 export interface ApiResponse<T = any> {

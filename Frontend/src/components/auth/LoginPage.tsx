@@ -4,6 +4,7 @@ import { Github, Terminal, Activity, Code2, ShieldCheck, Loader2 } from 'lucide-
 import toast from 'react-hot-toast'
 import { Button } from '../ui/button'
 import { Spotlight, Magnetic } from '../ui/motion'
+import { Logo } from '../ui/logo'
 import { useAuthStore } from '../../store/authStore'
 import { apiClient } from '../../lib/api'
 import type { User } from '../../types/api'
@@ -135,9 +136,7 @@ const LoginPage = () => {
         <div className="relative z-10 grid gap-10 p-8 md:grid-cols-2 md:p-12">
           <div className="flex flex-col justify-center">
             <div className="flex items-center gap-3">
-              <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-primary to-primary/60 shadow-lg shadow-primary/25">
-                <Terminal className="h-5 w-5 text-primary-foreground" />
-              </div>
+              <Logo size="lg" />
               <div>
                 <p className="font-mono text-sm font-semibold">AFK Monitor</p>
                 <p className="text-[11px] text-muted-foreground">Coding analytics</p>

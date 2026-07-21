@@ -21,14 +21,21 @@ export const ACCENTS = [
   'hsl(340 75% 60% / 0.20)',
 ]
 
-/** Solid versions of the same hues, for bars and dots. */
+/**
+ * Solid versions of the same hues, for bars and dots.
+ *
+ * Hex on purpose: these get suffixed with hex alpha (`${hue}bb`) to build
+ * gradients, and the backend's own language colours are hex too. An `hsl()`
+ * string would produce `hsl(...)bb` — invalid CSS that fails silently and
+ * renders the meter empty.
+ */
 export const ACCENT_SOLID = [
-  'hsl(var(--primary))',
-  'hsl(38 92% 55%)',
-  'hsl(152 62% 48%)',
-  'hsl(280 65% 65%)',
-  'hsl(190 80% 55%)',
-  'hsl(340 75% 60%)',
+  '#3b82f6',
+  '#f59e0b',
+  '#22c55e',
+  '#a855f7',
+  '#06b6d4',
+  '#ec4899',
 ]
 
 interface StatCardProps {
@@ -138,8 +145,11 @@ interface RankRowProps {
 /**
  * A ranked row with a meter — used for project and language breakdowns.
  *
- * The bar fill is a CSS transition on a scaled element rather than an animated
- * width, so it composites on the GPU and cannot cause layout reflow.
+ * The meter is a segmented track rather than a plain rail: discrete ticks read
+ * as an instrument readout and give the eye something to measure against, which
+ * a single flat bar does not. The lit portion is one gradient element clipped by
+ * the track, scaled on the X axis — `transform` composites on the GPU, whereas
+ * animating `width` would force layout on every frame.
  */
 export const RankRow = ({
   rank,
@@ -151,38 +161,69 @@ export const RankRow = ({
   index = 0,
 }: RankRowProps) => {
   const hue = color ?? ACCENT_SOLID[(rank - 1) % ACCENT_SOLID.length]
+  const isLead = rank === 1
 
   return (
-    <li className="group relative rounded-xl px-3 py-3 transition-colors duration-200 hover:bg-foreground/[0.035]">
-      <div className="flex items-baseline gap-3">
-        <span className="w-5 shrink-0 font-mono text-xs text-muted-foreground/70">
+    <li className="group relative overflow-hidden rounded-xl px-3 py-3.5 transition-colors duration-300 hover:bg-foreground/[0.035]">
+      {/* Colour bleeds in from the left on hover, tinted to the row's own hue. */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-y-0 left-0 w-1/3 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+        style={{ background: `linear-gradient(90deg, ${hue}14, transparent)` }}
+      />
+
+      <div className="relative flex items-center gap-3">
+        {/* Rank chip — filled for the leader, outlined for the rest. */}
+        <span
+          className={cn(
+            'grid h-7 w-7 shrink-0 place-items-center rounded-lg font-mono text-[11px] font-semibold transition-transform duration-300 group-hover:scale-110',
+            isLead ? 'text-background' : 'text-muted-foreground ring-1 ring-inset ring-border/80'
+          )}
+          style={isLead ? { background: hue, boxShadow: `0 0 18px -4px ${hue}` } : undefined}
+        >
           {String(rank).padStart(2, '0')}
         </span>
 
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline justify-between gap-3">
-            <p className="truncate text-sm font-medium transition-colors group-hover:text-foreground">
-              {name}
-            </p>
-            <p className="shrink-0 tabular font-mono text-sm font-medium">{value}</p>
+            <p className="truncate text-sm font-medium">{name}</p>
+            <p className="shrink-0 tabular font-mono text-sm font-semibold">{value}</p>
           </div>
-          <div className="flex items-baseline justify-between gap-3">
-            <p className="truncate text-xs text-muted-foreground">{subtitle}</p>
-            <p className="shrink-0 tabular text-xs text-muted-foreground">{percent}%</p>
-          </div>
-        </div>
-      </div>
 
-      <div className="mt-2 ml-8 h-1.5 overflow-hidden rounded-full bg-foreground/[0.07]">
-        <div
-          className="h-full origin-left rounded-full"
-          style={{
-            background: `linear-gradient(90deg, ${hue}, ${hue}99)`,
-            boxShadow: `0 0 12px -2px ${hue}`,
-            transform: `scaleX(${Math.max(0.01, percent / 100)})`,
-            transition: `transform 0.8s cubic-bezier(0.16,1,0.3,1) ${index * 0.06}s`,
-          }}
-        />
+          <div className="mt-1.5 flex items-center gap-3">
+            {/* Segmented meter. */}
+            <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-foreground/[0.06] ring-1 ring-inset ring-border/50">
+              <div
+                className="h-full origin-left rounded-full"
+                style={{
+                  background: `linear-gradient(90deg, ${hue}bb, ${hue})`,
+                  boxShadow: `0 0 14px -2px ${hue}`,
+                  transform: `scaleX(${Math.max(0.012, percent / 100)})`,
+                  transition: `transform 0.85s cubic-bezier(0.16,1,0.3,1) ${index * 0.07}s`,
+                }}
+              />
+              {/*
+                Tick marks sit above the fill so the meter reads as a scale.
+                Kept sparse and faint — dense, opaque ticks eat the fill and
+                make a full bar look empty.
+              */}
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-0"
+                style={{
+                  backgroundImage:
+                    'repeating-linear-gradient(90deg, transparent 0 17px, hsl(var(--background)/0.28) 17px 18px)',
+                }}
+              />
+            </div>
+
+            <p className="w-9 shrink-0 text-right tabular font-mono text-xs text-muted-foreground">
+              {percent}%
+            </p>
+          </div>
+
+          <p className="mt-1 truncate text-[11px] text-muted-foreground/80">{subtitle}</p>
+        </div>
       </div>
     </li>
   )

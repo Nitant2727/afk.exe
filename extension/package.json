@@ -60,6 +60,11 @@
           "type": "number",
           "default": 10,
           "description": "Session sync delay in seconds"
+        },
+        "afk-coding-monitor.apiToken": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Bearer token used to attribute sessions to your account. Copy it from the dashboard's Settings page. Leave blank when the server has no authentication configured."
         }
       }
     }

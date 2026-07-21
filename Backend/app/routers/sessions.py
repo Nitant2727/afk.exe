@@ -7,6 +7,7 @@ from enum import Enum
 import logging
 
 from app.database import get_db
+from app.routers.auth import current_user_id
 from app.models import FileSession
 from app.schemas import (
     SessionRequest, SuccessResponse, ErrorResponse
@@ -15,8 +16,6 @@ from app.schemas import (
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 logger = logging.getLogger(__name__)
 
-# Default user for all sessions (no authentication)
-DEFAULT_USER_ID = "dev-user"
 
 
 class TimeFilter(str, Enum):
@@ -79,11 +78,11 @@ def get_time_range(time_filter: TimeFilter, start_date: Optional[datetime] = Non
 @router.post("", response_model=Union[SuccessResponse, ErrorResponse])
 async def create_session(
     session_request: SessionRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(current_user_id)
 ):
     """
-    Submit file session data from the extension.
-    No authentication required for simplicity.
+    Store a file session for the signed-in user.
     """
     try:
         session_data = session_request.session
@@ -93,7 +92,7 @@ async def create_session(
         existing_session_query = select(FileSession).where(
             and_(
                 FileSession.id == session_data.get("id"),
-                FileSession.user_id == DEFAULT_USER_ID
+                FileSession.user_id == user_id
             )
         )
         existing_session_result = await db.execute(existing_session_query)
@@ -125,7 +124,7 @@ async def create_session(
             # Create new session
             new_session = FileSession(
                 id=session_data.get("id"),
-                user_id=DEFAULT_USER_ID,
+                user_id=user_id,
                 file_path=session_data.get("filePath"),
                 file_name=session_data.get("fileName"),
                 file_extension=session_data.get("fileExtension"),
@@ -170,6 +169,7 @@ async def create_session(
 @router.get("", response_model=Union[SuccessResponse, ErrorResponse])
 async def get_sessions(
     db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(current_user_id),
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
     projectName: Optional[str] = Query(None, alias="projectName"),
@@ -183,7 +183,7 @@ async def get_sessions(
     """
     try:
         # Build query for user's sessions
-        query = select(FileSession).where(FileSession.user_id == DEFAULT_USER_ID)
+        query = select(FileSession).where(FileSession.user_id == user_id)
         
         # Apply filters
         if projectName:
@@ -250,13 +250,15 @@ async def get_sessions(
 
 
 @router.get("/projects", response_model=Union[SuccessResponse, ErrorResponse])
-async def get_unique_projects(db: AsyncSession = Depends(get_db)):
+async def get_unique_projects(db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(current_user_id)):
     """
-    Get list of unique project names from sessions.
-    No authentication required.
+    Get the signed-in user's distinct project names.
     """
     try:
-        query = select(distinct(FileSession.project_name)).where(FileSession.project_name.isnot(None))
+        query = select(distinct(FileSession.project_name)).where(
+            and_(FileSession.user_id == user_id, FileSession.project_name.isnot(None))
+        )
         result = await db.execute(query)
         projects = result.scalars().all()
         
@@ -276,13 +278,15 @@ async def get_unique_projects(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/languages", response_model=Union[SuccessResponse, ErrorResponse])
-async def get_unique_languages(db: AsyncSession = Depends(get_db)):
+async def get_unique_languages(db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(current_user_id)):
     """
-    Get list of unique programming languages from sessions.
-    No authentication required.
+    Get the signed-in user's distinct programming languages.
     """
     try:
-        query = select(distinct(FileSession.language)).where(FileSession.language.isnot(None))
+        query = select(distinct(FileSession.language)).where(
+            and_(FileSession.user_id == user_id, FileSession.language.isnot(None))
+        )
         result = await db.execute(query)
         languages = result.scalars().all()
         
@@ -304,6 +308,7 @@ async def get_unique_languages(db: AsyncSession = Depends(get_db)):
 @router.get("/stats", response_model=Union[SuccessResponse, ErrorResponse])
 async def get_session_statistics(
     db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(current_user_id),
     time_filter: Optional[TimeFilter] = Query(None),
     start_date: Optional[datetime] = Query(None),
     end_date: Optional[datetime] = Query(None),
@@ -316,7 +321,7 @@ async def get_session_statistics(
     """
     try:
         # Build base query
-        query = select(FileSession).where(FileSession.user_id == DEFAULT_USER_ID)
+        query = select(FileSession).where(FileSession.user_id == user_id)
         
         # Apply time filtering
         if time_filter:
@@ -370,6 +375,7 @@ async def get_session_statistics(
 @router.get("/stats/daily", response_model=Union[SuccessResponse, ErrorResponse])
 async def get_daily_statistics(
     db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(current_user_id),
     time_filter: Optional[TimeFilter] = Query(TimeFilter.LAST_7_DAYS),
     start_date: Optional[datetime] = Query(None),
     end_date: Optional[datetime] = Query(None),
@@ -382,7 +388,7 @@ async def get_daily_statistics(
     """
     try:
         # Build base query
-        query = select(FileSession).where(FileSession.user_id == DEFAULT_USER_ID)
+        query = select(FileSession).where(FileSession.user_id == user_id)
         
         # Apply time filtering
         if time_filter:
@@ -434,6 +440,7 @@ async def get_daily_statistics(
 @router.get("/stats/languages", response_model=Union[SuccessResponse, ErrorResponse])
 async def get_language_statistics(
     db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(current_user_id),
     time_filter: Optional[TimeFilter] = Query(None),
     start_date: Optional[datetime] = Query(None),
     end_date: Optional[datetime] = Query(None),
@@ -445,7 +452,7 @@ async def get_language_statistics(
     """
     try:
         # Build base query
-        query = select(FileSession).where(FileSession.user_id == DEFAULT_USER_ID)
+        query = select(FileSession).where(FileSession.user_id == user_id)
         
         # Apply time filtering
         if time_filter:
@@ -522,6 +529,7 @@ async def get_language_statistics(
 @router.get("/stats/projects", response_model=Union[SuccessResponse, ErrorResponse])
 async def get_project_statistics(
     db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(current_user_id),
     time_filter: Optional[TimeFilter] = Query(None),
     start_date: Optional[datetime] = Query(None),
     end_date: Optional[datetime] = Query(None),
@@ -533,7 +541,7 @@ async def get_project_statistics(
     """
     try:
         # Build base query
-        query = select(FileSession).where(FileSession.user_id == DEFAULT_USER_ID)
+        query = select(FileSession).where(FileSession.user_id == user_id)
         
         # Apply time filtering
         if time_filter:
@@ -583,6 +591,7 @@ async def get_project_statistics(
 @router.get("/stats/hourly", response_model=Union[SuccessResponse, ErrorResponse])
 async def get_hourly_statistics(
     db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(current_user_id),
     time_filter: Optional[TimeFilter] = Query(TimeFilter.LAST_7_DAYS),
     start_date: Optional[datetime] = Query(None),
     end_date: Optional[datetime] = Query(None),
@@ -595,7 +604,7 @@ async def get_hourly_statistics(
     """
     try:
         # Build base query
-        query = select(FileSession).where(FileSession.user_id == DEFAULT_USER_ID)
+        query = select(FileSession).where(FileSession.user_id == user_id)
         
         # Apply time filtering
         if time_filter:

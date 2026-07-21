@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'react-hot-toast'
-import { AnimatePresence, motion } from 'framer-motion'
 import Dashboard from './components/dashboard/Dashboard'
 import SessionsPage from './components/sessions/SessionsPage'
 import AnalyticsPage from './components/analytics/AnalyticsPage'
@@ -59,22 +58,18 @@ const MainLayout = () => {
         <Header timeFilter={timeFilter} onTimeFilterChange={setTimeFilter} />
         <main className="flex-1 overflow-y-auto overflow-x-hidden">
           {/*
-            * Keyed on the tab so each view gets its own enter/exit pass.
-            * `initial={false}` skips the animation on first mount, and the
-            * enter state deliberately animates position only — never opacity —
-            * so a transition that fails to run can't leave the page blank.
+            * Deliberately not AnimatePresence with mode="wait": that holds the
+            * incoming view until the outgoing one finishes animating out, so if
+            * the animation clock is starved (background tab, throttled device)
+            * navigation stops working entirely — clicks change nothing.
+            *
+            * Remounting on `key` and animating only the entrance keeps routing
+            * independent of motion. Position animates, opacity does not, so a
+            * transition that never runs still leaves the page fully readable.
             */}
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={activeTab}
-              initial={{ y: 10 }}
-              animate={{ y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
-            >
-              {renderContent()}
-            </motion.div>
-          </AnimatePresence>
+          <div key={activeTab} className="page-enter">
+            {renderContent()}
+          </div>
         </main>
       </div>
     </div>

@@ -20,7 +20,7 @@ export class Monitor {
     
     const settings = this.config.getConfig();
     this.tracker = new Tracker();
-    this.apiClient = new ApiClient(settings.serverUrl);
+    this.apiClient = new ApiClient(settings.serverUrl, settings.apiToken);
 
     // Create status bar
     this.statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
@@ -139,6 +139,7 @@ export class Monitor {
     this.disposables.push(
       this.config.onConfigChanged(settings => {
         this.apiClient.updateUrl(settings.serverUrl);
+        this.apiClient.setToken(settings.apiToken);
         
         if (settings.enabled && !this.tracker.getCurrentSession()) {
           this.startMonitoring();
