@@ -8,6 +8,7 @@ import {
   MetricSkeletons,
   ACCENT_SOLID,
 } from '../ui/data-display'
+import { SelectMenu } from '../ui/select-menu'
 import { formatDuration, cn } from '../../lib/utils'
 import { apiClient } from '../../lib/api'
 import type { FileSession, LanguageStats, TimeFilter } from '../../types/api'
@@ -96,9 +97,6 @@ const SessionsPage = ({ timeFilter }: SessionsPageProps) => {
     setPage(0)
   }
 
-  const selectClass =
-    'h-8 rounded-lg border border-border/80 bg-foreground/[0.03] px-2 text-xs outline-none transition-colors focus:border-primary/50'
-
   return (
     <div className="space-y-4 p-5">
       {sessionsQ.isLoading ? (
@@ -148,39 +146,29 @@ const SessionsPage = ({ timeFilter }: SessionsPageProps) => {
               />
             </div>
 
-            <select
+            <SelectMenu
               value={project}
-              onChange={(e) => {
-                setProject(e.target.value)
+              onChange={(v) => {
+                setProject(v)
                 setPage(0)
               }}
-              aria-label="Filter by project"
-              className={selectClass}
-            >
-              <option value="">All projects</option>
-              {projectNames.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
+              options={projectNames.map((p) => ({ value: p, label: p }))}
+              placeholder="All projects"
+              emptyLabel="All projects"
+              ariaLabel="Filter by project"
+            />
 
-            <select
+            <SelectMenu
               value={language}
-              onChange={(e) => {
-                setLanguage(e.target.value)
+              onChange={(v) => {
+                setLanguage(v)
                 setPage(0)
               }}
-              aria-label="Filter by language"
-              className={selectClass}
-            >
-              <option value="">All languages</option>
-              {languages.map((l) => (
-                <option key={l.name} value={l.name}>
-                  {l.name}
-                </option>
-              ))}
-            </select>
+              options={languages.map((l) => ({ value: l.name, label: l.name }))}
+              placeholder="All languages"
+              emptyLabel="All languages"
+              ariaLabel="Filter by language"
+            />
 
             {filtersActive && (
               <button

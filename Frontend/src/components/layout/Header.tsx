@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient, useIsFetching } from '@tanstack/react-query'
 import { Moon, Sun, RefreshCw, Search } from 'lucide-react'
+import { SelectMenu } from '../ui/select-menu'
 import { apiClient } from '../../lib/api'
 import type { TimeFilter } from '../../types/api'
 import { cn } from '../../lib/utils'
@@ -82,7 +83,14 @@ const Header = ({ title, timeFilter, onTimeFilterChange, className }: HeaderProp
               key={q.value}
               onClick={() => onTimeFilterChange(q.value)}
               className={cn(
-                'rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
+                /*
+                 * Only `color` transitions — never `background-color`. The
+                 * background *is* the selection indicator, and a transition
+                 * that stalls (throttled tab, frozen animation clock) leaves
+                 * an inactive pill still painted as active. State switches
+                 * instantly; only the text tint eases.
+                 */
+                'rounded-md px-2.5 py-1 text-xs font-medium transition-[color]',
                 timeFilter === q.value
                   ? 'bg-primary text-primary-foreground'
                   : 'text-muted-foreground hover:text-foreground'
@@ -93,19 +101,14 @@ const Header = ({ title, timeFilter, onTimeFilterChange, className }: HeaderProp
           ))}
         </div>
 
-        <select
+        <SelectMenu
           value={MORE.some((m) => m.value === timeFilter) ? timeFilter : ''}
-          onChange={(e) => e.target.value && onTimeFilterChange(e.target.value as TimeFilter)}
-          aria-label="Other date ranges"
-          className="h-8 rounded-lg border border-border/80 bg-foreground/[0.03] px-2 text-xs text-muted-foreground outline-none transition-colors hover:text-foreground focus:border-primary/50"
-        >
-          <option value="">Custom…</option>
-          {MORE.map((m) => (
-            <option key={m.value} value={m.value}>
-              {m.label}
-            </option>
-          ))}
-        </select>
+          onChange={(v) => v && onTimeFilterChange(v as TimeFilter)}
+          options={MORE.map((m) => ({ value: m.value, label: m.label }))}
+          placeholder="Custom…"
+          ariaLabel="Other date ranges"
+          className="hidden md:flex"
+        />
 
         <span
           title={online ? 'Backend reachable' : 'Backend unreachable'}
