@@ -26,6 +26,43 @@ export const ACCENT_SOLID = [
   '#ec4899',
 ]
 
+/**
+ * Thin vertical bars showing the shape of a series behind a headline number.
+ *
+ * Rendered as flex children rather than an SVG chart: at this size a charting
+ * library costs more than it gives, and plain elements inherit `currentColor`
+ * so the bars flip correctly inside an inverted panel.
+ */
+export const BarSpark = ({
+  values,
+  className,
+}: {
+  values: number[]
+  className?: string
+}) => {
+  if (values.length === 0) return null
+  const max = Math.max(...values, 1)
+
+  return (
+    <div
+      aria-hidden
+      className={cn('flex h-8 items-end gap-[2px] overflow-hidden', className)}
+    >
+      {values.map((v, i) => (
+        <span
+          key={i}
+          className="min-w-[2px] flex-1 rounded-[1px] bg-current"
+          style={{
+            height: `${Math.max(8, (v / max) * 100)}%`,
+            // Recent bars read as solid, older ones recede.
+            opacity: 0.25 + (i / Math.max(1, values.length - 1)) * 0.75,
+          }}
+        />
+      ))}
+    </div>
+  )
+}
+
 interface MetricProps {
   label: string
   icon: LucideIcon
@@ -34,6 +71,10 @@ interface MetricProps {
   /** Renders an animated counter instead of a static value. */
   count?: { to: number; format?: (n: number) => string }
   delta?: number
+  /** Series drawn as bars beneath the value. */
+  spark?: number[]
+  /** Promote this tile to the pale panel. Use for one tile at most. */
+  invert?: boolean
   className?: string
 }
 
@@ -44,24 +85,38 @@ export const Metric = ({
   sub,
   count,
   delta,
+  spark,
+  invert,
   className,
 }: MetricProps) => (
   <div
     className={cn(
-      'rounded-xl border border-border/70 bg-surface/50 p-4 transition-colors hover:border-border',
+      'rounded-xl border p-4 transition-colors',
+      invert
+        ? 'card-invert border-transparent'
+        : 'border-border/70 bg-surface/50 hover:border-border',
       className
     )}
   >
     <div className="flex items-center gap-2">
-      <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-      <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+      <Icon className={cn('h-3.5 w-3.5', invert ? 'opacity-60' : 'text-muted-foreground')} />
+      <p
+        className={cn(
+          'text-[11px] font-medium uppercase tracking-wider',
+          invert ? 'opacity-70' : 'text-muted-foreground'
+        )}
+      >
         {label}
       </p>
       {delta != null && delta !== 0 && Number.isFinite(delta) && (
         <span
           className={cn(
             'ml-auto flex items-center gap-0.5 text-[11px] font-medium tabular',
-            delta > 0 ? 'text-success' : 'text-destructive'
+            invert
+              ? 'opacity-80'
+              : delta > 0
+                ? 'text-success'
+                : 'text-destructive'
           )}
         >
           {delta > 0 ? (
@@ -73,10 +128,29 @@ export const Metric = ({
         </span>
       )}
     </div>
-    <p className="mt-2.5 truncate font-mono text-2xl font-semibold leading-none tracking-tight">
+
+    {spark && spark.length > 0 && (
+      <BarSpark
+        values={spark}
+        className={cn('mt-3', invert ? 'opacity-70' : 'text-primary/70')}
+      />
+    )}
+
+    <p
+      className={cn(
+        'truncate font-mono text-2xl font-semibold leading-none tracking-tight',
+        spark && spark.length > 0 ? 'mt-3' : 'mt-2.5'
+      )}
+    >
       {count ? <CountUp value={count.to} format={count.format} /> : value}
     </p>
-    {sub && <p className="mt-1.5 truncate text-xs text-muted-foreground">{sub}</p>}
+    {sub && (
+      <p
+        className={cn('mt-1.5 truncate text-xs', invert ? 'opacity-70' : 'text-muted-foreground')}
+      >
+        {sub}
+      </p>
+    )}
   </div>
 )
 

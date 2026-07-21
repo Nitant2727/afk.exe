@@ -58,6 +58,11 @@ export default {
         },
         success: "hsl(var(--success))",
         glow: "hsl(var(--glow))",
+        invert: {
+          DEFAULT: "hsl(var(--invert))",
+          foreground: "hsl(var(--invert-foreground))",
+          muted: "hsl(var(--invert-muted))",
+        },
       },
       fontFamily: {
         sans: ["'Fira Sans'", "ui-sans-serif", "system-ui", "sans-serif"],

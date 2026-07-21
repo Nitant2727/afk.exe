@@ -39,36 +39,54 @@
     --ring: 221 83% 53%;
     --radius: 0.75rem;
 
+    --invert: 60 4% 12%;
+    --invert-foreground: 60 6% 96%;
+    --invert-muted: 60 3% 65%;
+
     --glow: 221 83% 53%;
     --grid-line: 222 30% 88%;
   }
 
   .dark {
-    --background: 224 47% 5%;
-    --surface: 223 42% 7%;
-    --surface-raised: 222 38% 10%;
-    --foreground: 210 40% 98%;
-    --card: 223 42% 7%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222 38% 10%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 217 91% 60%;
-    --primary-foreground: 224 47% 5%;
-    --secondary: 222 30% 15%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 222 30% 14%;
-    --muted-foreground: 215 20% 65%;
-    --accent: 38 92% 55%;
-    --accent-foreground: 224 47% 5%;
-    --destructive: 0 72% 58%;
-    --destructive-foreground: 210 40% 98%;
-    --success: 152 62% 48%;
-    --border: 220 26% 17%;
-    --input: 220 26% 17%;
-    --ring: 217 91% 60%;
+    /*
+     * Neutral near-black rather than blue-tinted: the blue cast read as a
+     * default Tailwind theme. Sage is the single accent — one colour used
+     * sparingly beats an interface where everything is tinted the same hue.
+     */
+    --background: 60 2% 5%;
+    --surface: 60 2% 8%;
+    --surface-raised: 60 2% 11%;
+    --foreground: 60 6% 96%;
+    --card: 60 2% 8%;
+    --card-foreground: 60 6% 96%;
+    --popover: 60 2% 11%;
+    --popover-foreground: 60 6% 96%;
 
-    --glow: 217 91% 60%;
-    --grid-line: 220 30% 14%;
+    --primary: 96 26% 76%;
+    --primary-foreground: 60 4% 8%;
+    --secondary: 60 2% 14%;
+    --secondary-foreground: 60 6% 96%;
+    --muted: 60 2% 13%;
+    --muted-foreground: 60 3% 62%;
+    --accent: 96 40% 66%;
+    --accent-foreground: 60 4% 8%;
+    --destructive: 4 70% 60%;
+    --destructive-foreground: 60 6% 96%;
+    --success: 96 40% 62%;
+    --border: 60 2% 16%;
+    --input: 60 2% 16%;
+    --ring: 96 26% 76%;
+
+    /*
+     * Inverted surface — a pale sage panel on the dark shell. Used sparingly to
+     * promote one card at a time; contrast does the work that glow used to.
+     */
+    --invert: 96 22% 86%;
+    --invert-foreground: 60 4% 10%;
+    --invert-muted: 96 8% 38%;
+
+    --glow: 96 40% 66%;
+    --grid-line: 60 2% 12%;
   }
 
   * {
@@ -154,6 +172,16 @@
     background-size: 44px 44px;
     -webkit-mask-image: radial-gradient(ellipse 90% 60% at 50% 0%, #000 45%, transparent 100%);
     mask-image: radial-gradient(ellipse 90% 60% at 50% 0%, #000 45%, transparent 100%);
+  }
+
+  /* Pale panel that flips foreground colours with it. */
+  .card-invert {
+    background: hsl(var(--invert));
+    color: hsl(var(--invert-foreground));
+    border-color: hsl(var(--invert) / 0.6);
+  }
+  .card-invert .text-muted-foreground {
+    color: hsl(var(--invert-muted));
   }
 
   .text-gradient {

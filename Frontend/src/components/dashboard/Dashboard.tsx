@@ -95,6 +95,10 @@ const Dashboard = ({ timeFilter }: DashboardProps) => {
     label: new Date(d.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
   }))
 
+  // Bars are fed from the real daily series, not decoration.
+  const durationSeries = daily.map((d) => d.duration)
+  const sessionSeries = daily.map((d) => d.sessions)
+
   const langTotal = languages.reduce((s, l) => s + l.duration, 0)
   const projTotal = projects.reduce((s, p) => s + p.duration, 0)
 
@@ -131,6 +135,8 @@ const Dashboard = ({ timeFilter }: DashboardProps) => {
               count={{ to: stats?.totalDuration ?? 0, format: (n) => formatDuration(n) }}
               sub={`Avg ${formatDuration(stats?.averageSessionDuration ?? 0)} / session`}
               delta={delta}
+              spark={durationSeries}
+              invert
             />
             <Metric
               label="Sessions"
@@ -138,6 +144,7 @@ const Dashboard = ({ timeFilter }: DashboardProps) => {
               value={stats?.totalSessions ?? 0}
               count={{ to: stats?.totalSessions ?? 0 }}
               sub={`${projects.length} projects touched`}
+              spark={sessionSeries}
             />
             <Metric
               label="Lines added"
